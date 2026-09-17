@@ -1,0 +1,16 @@
+{
+  "model": {
+    "provider": "my-provider",
+    "model": "my-model",
+    "protocol": "openai-compatible",
+    "baseUrl": "https://example.invalid/v1",
+    "apiKeyEnv": "MY_MODEL_API_KEY"
+  },
+  "agent": {
+    "name": "build",
+    "prompt": "You are a helpful coding assistant.",
+    "steps": 1000
+  },
+  "mcpServers": [],
+  "skills": []
+}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RealCode · 会话</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/extras.css" />
+    <link rel="stylesheet" href="/fenix-theme.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <div class="layout">
+        <aside class="sidebar">
+          <header class="topbar">
+            <div class="brand"><span class="brand-mark">R</span><span>RealCode</span></div>
+          </header>
+          <div class="sidebar-heading"><span>会话</span><button id="new-button" class="icon-button" title="新建会话" disabled>＋</button></div>
+          <div id="session-list" class="session-list"><div class="empty-list">正在读取会话…</div></div>
+          <div class="sidebar-foot">
+            <div class="topbar-right"><span id="connection-pill" class="connection-pill"><i></i>连接中</span><button id="connect-button" class="quiet-button">连接 RealCode</button></div>
+            <button id="refresh-button" class="text-button" disabled>刷新会话</button><div id="workspace-path" class="workspace-path"></div>
+          </div>
+        </aside>
+        <main class="conversation">
+          <div class="conversation-heading"><div><h1 id="conversation-title">新会话</h1><p id="session-id">NO SESSION</p></div><button id="trace-toggle" class="text-button" aria-expanded="false" aria-controls="inspector">资源与事件</button></div>
+          <div id="message-list" class="message-list"><div class="welcome"><div class="welcome-symbol">✳</div><h2>开始对话</h2><p>向 RealCode 发送消息，回复会显示在这里。</p></div></div>
+          <button id="scroll-bottom" class="scroll-bottom" type="button" aria-label="滚动到底部" hidden>↓</button>
+          <div id="loading-indicator" class="loading-indicator" role="status" hidden><i></i>RealCode 正在回复…</div>
+          <div id="activity-panel" class="activity-panel" hidden></div>
+          <div id="error-banner" class="error-banner" role="alert" hidden><span id="error-text"></span><button id="error-close" type="button" aria-label="关闭错误">×</button></div>
+          <form id="composer" class="composer"><label for="prompt-input" class="sr-only">发送给 RealCode</label><textarea id="prompt-input" rows="2" placeholder="给 RealCode 发送消息…" disabled></textarea><div id="command-menu" class="command-menu" hidden></div><div id="attachments" class="attachments"></div><div class="composer-bottom"><div class="composer-meta"><button id="attach-file" type="button" title="上传文件">＋</button><button id="attach-image" type="button" title="添加图片" disabled>▧</button><input id="file-input" type="file" multiple hidden><input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden><select id="mode-select" aria-label="会话模式" hidden></select><select id="model-select" aria-label="模型" hidden></select><select id="effort-select" aria-label="推理强度" title="推理强度" hidden></select><span id="usage-label">Enter 发送 · Shift+Enter 换行</span></div><div><button id="cancel-button" type="button" class="cancel-button" disabled>停止</button><button id="send-button" type="submit" class="send-button" disabled>发送 ↑</button></div></div></form>
+        </main>
+        <aside id="inspector" class="inspector" hidden>
+          <div class="inspector-heading"><h2>会话上下文</h2></div>
+          <div id="context-stats" class="context-stats"></div>
+          <section class="resource-browser" aria-label="文件管理">
+            <div class="inspector-heading resource-heading"><h2>文件管理</h2><span id="resource-count" class="resource-count">0 项</span></div>
+            <div class="resource-toolbar" role="toolbar" aria-label="资源操作">
+              <button id="resource-new-file" type="button" title="新建文件">新文件</button>
+              <button id="resource-new-folder" type="button" title="新建文件夹">文件夹</button>
+              <button id="resource-upload" type="button" title="上传文件">上传</button>
+              <button id="resource-refresh" type="button" title="刷新资源" aria-label="刷新资源">刷新</button>
+            </div>
+            <input id="resource-upload-input" type="file" multiple hidden>
+            <div id="resource-tree" class="resource-tree" role="tree"></div>
+            <div id="resource-status" class="resource-status" role="status">打开面板后读取工作区</div>
+          </section>
+          <div class="inspector-heading"><h2>ACP 事件</h2><button id="clear-events" class="text-button">清空事件</button></div>
+          <div id="event-list" class="event-list"></div>
+        </aside>
+      </div>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="permission-modal" class="modal-backdrop" hidden><div class="permission-card" role="dialog" aria-modal="true" aria-labelledby="permission-title"><h2 id="permission-title">RealCode 请求权限</h2><p id="permission-description"></p><div id="permission-options" class="permission-options"></div><button id="deny-permission" class="quiet-button">拒绝</button></div></div>
+    <div id="question-modal" class="modal-backdrop" hidden><form id="question-form" class="permission-card" role="dialog" aria-modal="true" aria-labelledby="question-title"><h2 id="question-title">RealCode 提问</h2><p id="question-description"></p><div id="question-fields" class="question-fields"></div><div class="question-actions"><button id="decline-question" type="button" class="quiet-button">取消</button><button type="submit" class="send-button">提交答案</button></div></form></div>
+    <div id="file-modal" class="modal-backdrop" hidden><div class="file-modal-card"><div class="iframe-modal-top"><span id="file-title">文件预览</span><button id="file-close" class="text-button">关闭</button></div><pre id="file-content"></pre></div></div>
+    <div id="image-modal" class="modal-backdrop" hidden><div class="image-modal-card"><button id="image-close" class="text-button">关闭</button><img id="image-expanded" alt="图片预览"></div></div>
+    <div id="iframe-modal" class="modal-backdrop" hidden><div class="iframe-modal-card"><div class="iframe-modal-top"><span>页面预览</span><select id="iframe-size" aria-label="预览大小"><option value="60">小</option><option value="80">中</option><option value="92" selected>大</option><option value="98">全屏</option></select><button id="iframe-close" class="text-button">关闭</button></div><iframe id="iframe-expanded" title="页面预览" sandbox="allow-scripts allow-forms allow-popups allow-downloads"></iframe></div></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
