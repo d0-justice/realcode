@@ -1,0 +1,39 @@
+# Copy outside the wheel as config/databases.toml, then set FASTSITE_DATABASE_CONFIG.
+# Passwords are read only from environment variables, never stored in this file.
+
+[databases.mysql]
+db_type = "mysql"
+host = "127.0.0.1"
+port = 3306
+user = "readonly_user"
+password_env = "WEB_MYSQL_PASSWORD"
+database = "business_db"
+charset = "utf8mb4"
+connect_timeout_seconds = 5
+read_timeout_seconds = 30
+write_timeout_seconds = 30
+pool_size = 4
+pool_max_overflow = 5
+pool_wait_timeout_seconds = 15
+# Optional for remote databases. Use an absolute CA certificate path.
+# ssl_ca = "/app/config/ca.pem"
+# ssl_verify_cert = true
+# ssl_verify_identity = true
+
+[databases.doris]
+db_type = "doris"
+host = "127.0.0.1"
+port = 9030
+user = "readonly_user"
+password_env = "WEB_DORIS_PASSWORD"
+database = "flight_data"
+charset = "utf8mb4"
+connect_timeout_seconds = 5
+read_timeout_seconds = 120
+write_timeout_seconds = 30
+pool_size = 4
+pool_max_overflow = 5
+pool_wait_timeout_seconds = 15
+# ssl_ca = "/app/config/ca.pem"
+# ssl_verify_cert = true
+# ssl_verify_identity = true

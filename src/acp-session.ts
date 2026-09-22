@@ -30,6 +30,12 @@ interface PendingQuestion {
   timer: ReturnType<typeof setTimeout>;
 }
 
+interface BrowserMcpConfig {
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
 function executablePath(): string {
   const configured = process.env.OPENCODE_BIN;
   if (configured) return configured;
@@ -58,10 +64,12 @@ export class AcpSessionLab {
   private planEntries: acp.PlanEntry[] = [];
   private lastUsage: acp.PromptResponse["usage"] | null = null;
   private sessionTitles = new Map<string, string>();
+  private readonly browserMcp: BrowserMcpConfig | null;
 
-  constructor(workspace: string) {
+  constructor(workspace: string, options: { browserMcp?: BrowserMcpConfig } = {}) {
     this.workspace = resolve(workspace);
     this.binary = executablePath();
+    this.browserMcp = options.browserMcp ?? null;
     mkdirSync(this.workspace, { recursive: true });
     const titlesPath = join(this.workspace, ".myopencode", "session-titles.json");
     if (existsSync(titlesPath)) {
@@ -260,8 +268,18 @@ export class AcpSessionLab {
     return this.connection;
   }
 
+  private mcpServers(): acp.McpServer[] {
+    if (!this.browserMcp) return [];
+    return [{
+      name: "realcode-browser",
+      command: this.browserMcp.command,
+      args: this.browserMcp.args,
+      env: Object.entries(this.browserMcp.env).map(([name, value]) => ({ name, value })),
+    }];
+  }
+
   async newSession() {
-    const result = await this.requireConnection().newSession({ cwd: this.workspace, mcpServers: [] });
+    const result = await this.requireConnection().newSession({ cwd: this.workspace, mcpServers: this.mcpServers() });
     this.sessionId = result.sessionId;
     this.configOptions = result.configOptions ?? [];
     this.messages = [];
@@ -301,7 +319,7 @@ export class AcpSessionLab {
     this.messageSequence = 0;
     this.planEntries = [];
     this.lastUsage = null;
-    const result = await this.requireConnection().loadSession({ sessionId, cwd: this.workspace, mcpServers: [] });
+    const result = await this.requireConnection().loadSession({ sessionId, cwd: this.workspace, mcpServers: this.mcpServers() });
     this.sessionId = sessionId;
     this.configOptions = result.configOptions ?? [];
     this.emit("session", { action: "load", sessionId, result });

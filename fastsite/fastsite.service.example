@@ -1,0 +1,19 @@
+[Unit]
+Description=Fastsite Extension Host
+After=network.target
+
+[Service]
+Type=simple
+User=airport
+WorkingDirectory=/path/to/askdata-agent/fastsite
+Environment=FASTSITE_BIND=127.0.0.1:3003
+Environment=FASTSITE_PID_FILE=/path/to/askdata-agent/run/fastsite.pid
+Environment=FASTSITE_EXTENSIONS_DIR=/path/to/askdata-agent/webservice/plugins
+ExecStart=/path/to/python -m gunicorn --config /path/to/askdata-agent/fastsite/gunicorn.conf.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=3
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target

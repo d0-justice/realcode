@@ -8,6 +8,31 @@ export function createChatView({ $, state, list, api, toast, renderActivity, ren
 const welcomeTemplate = list.querySelector(".welcome").cloneNode(true);
 let syncPromise;
 let syncAgain = false;
+const LOCAL_FRAME_SANDBOX = "allow-scripts allow-forms allow-downloads";
+const EXTERNAL_FRAME_SANDBOX = `${LOCAL_FRAME_SANDBOX} allow-same-origin allow-modals allow-presentation`;
+
+function configurePreviewFrame(frame, url) {
+  const external = /^https?:\/\//i.test(url);
+  frame.setAttribute("sandbox", external ? EXTERNAL_FRAME_SANDBOX : LOCAL_FRAME_SANDBOX);
+  frame.referrerPolicy = "strict-origin-when-cross-origin";
+  if (external) {
+    frame.setAttribute("allow", "autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write");
+    frame.setAttribute("allowfullscreen", "");
+  } else {
+    frame.removeAttribute("allow");
+    frame.removeAttribute("allowfullscreen");
+  }
+}
+
+function openFloatingPreview(url) {
+  const expanded = $("#iframe-expanded");
+  configurePreviewFrame(expanded, url);
+  expanded.name = "realcode-floating-preview";
+  expanded.dataset.realcodeControlTarget = "true";
+  expanded.src = url;
+  $("#iframe-modal").hidden = false;
+}
+
 function iframeUrl(text) {
   const value = text.trim();
   const escaped = value.startsWith("<iframe") ? value.replaceAll("<", "&lt;").replaceAll(">", "&gt;") : value;
@@ -24,7 +49,7 @@ function renderContent(body, role, text) {
       frame.src = url;
       frame.title = "RealCode 页面预览";
       frame.loading = "lazy";
-      frame.sandbox = "allow-scripts allow-forms allow-popups allow-downloads";
+      configurePreviewFrame(frame, url);
       frame.className = "message-iframe";
       const link = document.createElement("a");
       link.href = url;
@@ -35,10 +60,7 @@ function renderContent(body, role, text) {
       const expand = document.createElement("button");
       expand.className = "iframe-expand";
       expand.textContent = "展开预览";
-      expand.addEventListener("click", () => {
-        $("#iframe-expanded").src = url;
-        $("#iframe-modal").hidden = false;
-      });
+      expand.addEventListener("click", () => openFloatingPreview(url));
       body.append(frame, expand, link);
       body.dataset.iframeUrl = url;
       return;
@@ -58,12 +80,12 @@ function renderContent(body, role, text) {
       frame.src = url;
       frame.title = frame.title || "RealCode 页面预览";
       frame.loading = "lazy";
-      frame.sandbox = "allow-scripts allow-forms allow-popups allow-downloads";
+      configurePreviewFrame(frame, url);
       frame.className = "message-iframe";
       const expand = document.createElement("button");
       expand.className = "iframe-expand";
       expand.textContent = "展开预览";
-      expand.addEventListener("click", () => { $("#iframe-expanded").src = url; $("#iframe-modal").hidden = false; });
+      expand.addEventListener("click", () => openFloatingPreview(url));
       const link = document.createElement("a");
       link.className = "iframe-link";
       link.href = url;

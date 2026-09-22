@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>无人机架次轨迹查询</title>
+  <style>
+    :root { --ink:#17212b; --muted:#66727e; --line:#dce3e8; --blue:#1473e6; --panel:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); font:14px/1.45 "Microsoft YaHei",Arial,sans-serif; }
+    .app { display:grid; grid-template-columns:390px 1fr; height:100vh; min-width:960px; }
+    .sidebar { overflow:auto; background:var(--panel); border-right:1px solid var(--line); }
+    header,.query,.toolbar { padding:16px 18px; border-bottom:1px solid var(--line); }
+    h1,h2 { margin:0; } h1 { font-size:17px; }
+    .field { display:grid; gap:6px; margin-top:11px; }
+    .field label { color:var(--muted); font-size:12px; }
+    .field input,.field select { height:34px; border:1px solid #cbd5dc; border-radius:4px; padding:0 9px; }
+    .dates { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    button { height:34px; margin-top:13px; padding:0 14px; border:1px solid #0968cf; border-radius:4px; background:var(--blue); color:#fff; cursor:pointer; }
+    .error { margin:12px 18px; color:#b42318; }
+    .toolbar { display:flex; justify-content:space-between; }
+    .sortie { display:flex; gap:10px; padding:11px 18px; border-bottom:1px solid #eef1f3; }
+    .sortie input { margin-top:3px; }
+    .sortie strong,.sortie small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sortie small { color:var(--muted); margin-top:3px; }
+    .map-shell { position:relative; background:#edf1f3; } #map { width:100%; height:100%; }
+    .hint { position:absolute; z-index:2; top:16px; left:16px; padding:8px 11px; border:1px solid var(--line); border-radius:4px; background:#fff; }
+    .empty { padding:35px 18px; text-align:center; color:var(--muted); }
+    .pagination { display:flex; align-items:center; justify-content:center; gap:10px; padding:12px 18px; border-top:1px solid var(--line); }
+    .pagination a { color:var(--blue); text-decoration:none; } .pagination a[aria-disabled="true"] { color:var(--muted); pointer-events:none; }
+    .pagination span { color:var(--muted); font-size:12px; }
+    .loading { position:fixed; inset:0; z-index:20; display:none; place-items:center; background:rgba(15,23,42,.28); }
+    .loading.visible { display:grid; }.loading-panel { display:flex; gap:10px; align-items:center; padding:14px 18px; border-radius:6px; background:#fff; box-shadow:0 12px 30px rgba(15,23,42,.2); font-weight:600; }
+    .spinner { width:20px; height:20px; border:3px solid #dce3e8; border-top-color:var(--blue); border-radius:50%; animation:spin .75s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }.amap-logo,.amap-copyright { display:none!important; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside class="sidebar">
+      <header><h1>无人机架次轨迹查询</h1></header>
+      <form class="query" method="post" action="{{ request.url_for('flight_routes_search') }}">
+        <div class="field"><label>查询方式</label><select id="queryMode" name="query_mode"><option value="enterprise">企业 + 型号 + 日期</option><option value="order_id">按 order_id</option><option value="fp_id">按 fp_id</option></select></div>
+        <div class="field mode-field" data-mode="order_id"><label>order_id</label><input name="order_id" maxlength="180" value="{{ form.order_id|default('', true) }}"></div>
+        <div class="field mode-field" data-mode="fp_id"><label>fp_id</label><input name="fp_id" maxlength="180" value="{{ form.fp_id|default('', true) }}"></div>
+        <div class="field mode-field" data-mode="enterprise"><label>企业名称（可选）</label><input name="enterprise" maxlength="180" value="{{ form.enterprise|default('', true) }}"></div>
+        <div class="field mode-field" data-mode="enterprise"><label>无人机型号（可选）</label><input name="model" maxlength="120" value="{{ form.model|default('', true) }}" placeholder="例如 M4E"></div>
+        <div class="dates mode-field" data-mode="enterprise order_id fp_id"><div class="field"><label>开始日期</label><input name="start" type="date" value="{{ form.start }}"></div><div class="field"><label>结束日期</label><input name="end" type="date" value="{{ form.end }}"></div></div>
+        <button type="submit">查询架次</button>
+      </form>
+      <div class="error" id="queryError"{% if not error %} hidden{% endif %}>{{ error }}</div>
+      <div class="toolbar"><strong id="resultTitle">{% if form.query_mode == 'order_id' %}order_id 本页 {{ total }} 条{% elif form.query_mode == 'fp_id' %}fp_id 本页 {{ total }} 条{% else %}企业/型号查询，本页 {{ total }} 架次{% endif %}</strong><span>勾选后绘制</span></div>
+      <div id="sortieList">{% for sortie in sorties %}<label class="sortie"><input type="checkbox" data-fp-id="{{ sortie.fp_id }}"><span><strong>{{ sortie.fp_id }}</strong><small>勾选后加载该架次完整轨迹</small></span></label>{% else %}<div class="empty">填写条件后查询架次</div>{% endfor %}</div>
+      <nav class="pagination" id="pagination" aria-label="架次分页"{% if not query_ready or (page <= 1 and not has_next) %} hidden{% endif %}>{% if query_ready and (page > 1 or has_next) %}<a href="#" data-page="{{ page - 1 }}" aria-disabled="{{ 'true' if page <= 1 else 'false' }}">上一页</a><span>第 {{ page }} 页</span><a href="#" data-page="{{ page + 1 }}" aria-disabled="{{ 'false' if has_next else 'true' }}">下一页</a>{% endif %}</nav>
+    </aside>
+    <section class="map-shell"><div id="map"></div><div class="hint" id="hint">勾选左侧架次后显示轨迹</div></section>
+  </main>
+  <div class="loading" id="loading" aria-live="polite"><div class="loading-panel"><span class="spinner"></span><span>正在查询航线</span></div></div>
+  <script>window._AMapSecurityConfig={securityJsCode:"{{ amap_security_js_code|default('', true) }}"};window.ROUTE_INITIAL_QUERY={{ active_query|tojson }};</script>
+  <script src="https://webapi.amap.com/maps?v=2.0&key={{ amap_jsapi_key|default('', true) }}&plugin=AMap.Scale,AMap.ToolBar"></script>
+  <script>
+    const queryForm=document.querySelector('.query'),loading=document.getElementById('loading'),queryMode=document.getElementById('queryMode'),queryError=document.getElementById('queryError'),sortieList=document.getElementById('sortieList'),pagination=document.getElementById('pagination'),resultTitle=document.getElementById('resultTitle');
+    let activeQuery=window.ROUTE_INITIAL_QUERY,currentPage={{ page|tojson }},pageCursors={1:""};
+    function syncQueryMode(){const mode=queryMode.value;document.querySelectorAll('.mode-field').forEach(field=>{const modes=(field.dataset.mode||'').split(' ');field.style.display=modes.includes(mode)?'grid':'none';field.querySelectorAll('input').forEach(input=>{input.required=(input.name==='order_id'&&mode==='order_id')||(input.name==='fp_id'&&mode==='fp_id')})})}
+    queryMode.value={{ form.query_mode|default('enterprise', true)|tojson }};syncQueryMode();queryMode.addEventListener('change',syncQueryMode);
+    const map=window.AMap?new AMap.Map('map',{viewMode:'2D',zoom:8.8,center:[113.55,23.45]}):null,lines=new Map();if(map){map.addControl(new AMap.Scale());map.addControl(new AMap.ToolBar())}
+    function gcj(lng,lat){if(lng<72.004||lng>137.8347||lat<.8293||lat>55.8271)return[lng,lat];const tl=(x,y)=>-100+2*x+3*y+.2*y*y+.1*x*y+.2*Math.sqrt(Math.abs(x))+(20*Math.sin(6*x*Math.PI)+20*Math.sin(2*x*Math.PI))*2/3+(20*Math.sin(y*Math.PI)+40*Math.sin(y/3*Math.PI))*2/3+(160*Math.sin(y/12*Math.PI)+320*Math.sin(y*Math.PI/30))*2/3,tn=(x,y)=>300+x+2*y+.1*x*x+.1*x*y+.1*Math.sqrt(Math.abs(x))+(20*Math.sin(6*x*Math.PI)+20*Math.sin(2*x*Math.PI))*2/3+(20*Math.sin(x*Math.PI)+40*Math.sin(x/3*Math.PI))*2/3+(150*Math.sin(x*Math.PI)+300*Math.sin(x*Math.PI/30))*2/3,r=lat*Math.PI/180,m=1-.00669342162296594323*Math.sin(r)**2,q=Math.sqrt(m);return[lng+tn(lng-105,lat-35)*180/(6378245*q*Math.cos(r)*Math.PI),lat+tl(lng-105,lat-35)*180*m/(6378245*q**3*Math.PI)]}
+    function formPayload(page=1){const payload=Object.fromEntries(new FormData(queryForm).entries());payload.page=page;return payload}
+    async function api(url,options){const response=await fetch(url,options);const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.detail||'请求失败');return data}
+    function bindSorties(){sortieList.querySelectorAll('[data-fp-id]').forEach(box=>box.addEventListener('change',()=>toggle(box)))}
+    function renderPage(data,page){currentPage=page;if(data.has_next)pageCursors[page+1]=data.next_fp_id;else delete pageCursors[page+1];sortieList.replaceChildren();if(!data.items.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='未查询到符合条件的架次';sortieList.append(empty)}else{data.items.forEach(item=>{const label=document.createElement('label');label.className='sortie';const box=document.createElement('input');box.type='checkbox';box.dataset.fpId=item.fp_id;const text=document.createElement('span');const strong=document.createElement('strong');strong.textContent=item.fp_id;const small=document.createElement('small');small.textContent='勾选后加载该架次完整轨迹';text.append(strong,small);label.append(box,text);sortieList.append(label)});bindSorties()}const mode=queryMode.value;resultTitle.textContent=`${mode==='enterprise'?'企业/型号查询':mode} 本页 ${data.items.length} ${mode==='enterprise'?'架次':'条'}`;pagination.replaceChildren();if(page>1||data.has_next){pagination.hidden=false;[['上一页',page-1,page<=1],['下一页',page+1,!data.has_next]].forEach(([label,target,disabled],index)=>{if(index===1){const pageText=document.createElement('span');pageText.textContent=`第 ${page} 页`;pagination.append(pageText)}const link=document.createElement('a');link.href='#';link.textContent=label;link.dataset.page=target;link.setAttribute('aria-disabled',String(disabled));pagination.append(link)})}else{pagination.hidden=true}}
+    async function requestPage(payload){return api('/api/flight-queries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}
+    async function loadPage(page){if(!activeQuery||pageCursors[page]===undefined)return;loading.classList.add('visible');queryError.hidden=true;try{const data=await requestPage({...activeQuery,page,after_fp_id:pageCursors[page]});renderPage(data,page)}catch(error){queryError.textContent=error.message;queryError.hidden=false}finally{loading.classList.remove('visible')}}
+    async function toggle(box){const id=box.dataset.fpId;if(!box.checked){const items=lines.get(id);if(items&&map)map.remove(items);lines.delete(id);return}try{if(!map)throw Error('高德地图未加载，请检查 AMAP_JSAPI_KEY 配置');if(!activeQuery)throw Error('请先查询架次');const d=await api('/api/flight-queries/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...activeQuery,selected_fp_id:id})});const path=d.points.map(p=>d.coordinate==='WGS84'?gcj(p.lng,p.lat):[p.lng,p.lat]);if(path.length<2)throw Error('该架次没有有效轨迹');const line=new AMap.Polyline({path,strokeColor:'#1473e6',strokeWeight:5,strokeOpacity:.88,showDir:true});const start=new AMap.CircleMarker({center:path[0],radius:6,fillColor:'#008f84',strokeColor:'#fff',strokeWeight:2});const end=new AMap.CircleMarker({center:path.at(-1),radius:6,fillColor:'#d86c18',strokeColor:'#fff',strokeWeight:2});map.add([line,start,end]);lines.set(id,[line,start,end]);map.setFitView([...lines.values()].flat(),false,[70,70,70,70]);document.querySelector('#hint').textContent=`当前显示 ${lines.size} 条架次轨迹`}catch(error){box.checked=false;alert(error.message)}}
+    queryForm.addEventListener('submit',async event=>{event.preventDefault();loading.classList.add('visible');queryError.hidden=true;try{activeQuery=formPayload(1);pageCursors={1:""};const data=await requestPage({...activeQuery,after_fp_id:""});renderPage(data,1)}catch(error){queryError.textContent=error.message;queryError.hidden=false}finally{loading.classList.remove('visible')}});
+    pagination.addEventListener('click',event=>{const link=event.target.closest('a[data-page]');if(!link||link.getAttribute('aria-disabled')==='true')return;event.preventDefault();loadPage(Number(link.dataset.page))});
+    bindSorties();{% if auto_submit %}window.setTimeout(()=>queryForm.requestSubmit(),50);{% endif %}
+  </script>
+</body>
+</html>

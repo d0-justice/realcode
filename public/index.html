@@ -23,7 +23,7 @@
           </div>
         </aside>
         <main class="conversation">
-          <div class="conversation-heading"><div><h1 id="conversation-title">新会话</h1><p id="session-id">NO SESSION</p></div><button id="trace-toggle" class="text-button" aria-expanded="false" aria-controls="inspector">资源与事件</button></div>
+          <div class="conversation-heading"><div><h1 id="conversation-title">新会话</h1><p id="session-id">NO SESSION</p></div><div class="conversation-actions"><button id="browser-bridge-button" class="browser-bridge-button" type="button"><i></i><span>扩展未连接</span></button><button id="trace-toggle" class="text-button" aria-expanded="false" aria-controls="inspector">资源与事件</button></div></div>
           <div id="message-list" class="message-list"><div class="welcome"><div class="welcome-symbol">✳</div><h2>开始对话</h2><p>向 RealCode 发送消息，回复会显示在这里。</p></div></div>
           <button id="scroll-bottom" class="scroll-bottom" type="button" aria-label="滚动到底部" hidden>↓</button>
           <div id="loading-indicator" class="loading-indicator" role="status" hidden><i></i>RealCode 正在回复…</div>
@@ -54,9 +54,37 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="permission-modal" class="modal-backdrop" hidden><div class="permission-card" role="dialog" aria-modal="true" aria-labelledby="permission-title"><h2 id="permission-title">RealCode 请求权限</h2><p id="permission-description"></p><div id="permission-options" class="permission-options"></div><button id="deny-permission" class="quiet-button">拒绝</button></div></div>
     <div id="question-modal" class="modal-backdrop" hidden><form id="question-form" class="permission-card" role="dialog" aria-modal="true" aria-labelledby="question-title"><h2 id="question-title">RealCode 提问</h2><p id="question-description"></p><div id="question-fields" class="question-fields"></div><div class="question-actions"><button id="decline-question" type="button" class="quiet-button">取消</button><button type="submit" class="send-button">提交答案</button></div></form></div>
+    <div id="browser-modal" class="modal-backdrop" hidden>
+      <div class="browser-pairing-card" role="dialog" aria-modal="true" aria-labelledby="browser-modal-title">
+        <div class="browser-modal-heading"><div><span class="browser-kicker">BROWSER BRIDGE</span><h2 id="browser-modal-title">连接 Chrome 扩展</h2></div><button id="browser-modal-close" class="text-button" type="button">关闭</button></div>
+        <div id="browser-modal-status" class="browser-modal-status"><i></i><div><strong>扩展未连接</strong><span>安装扩展后使用下方令牌配对</span></div></div>
+        <ol class="browser-steps"><li>在 Chrome 加载 <code>realcode/realcode-browser-extension</code> 并接受安装权限</li><li>打开扩展，网页与 iframe 权限会显示“安装时已授权”</li><li>扩展自动识别本页面、完成配对并连接 RealCode</li></ol>
+        <div class="browser-meta"><span>WebSocket 地址</span><code id="browser-websocket-url"></code></div>
+        <div class="browser-modal-actions"><button id="browser-rotate-token" type="button" class="quiet-button">重新配对</button><span>重新配对会断开已有扩展，扩展随后会自动获取新令牌。</span></div>
+      </div>
+    </div>
     <div id="file-modal" class="modal-backdrop" hidden><div class="file-modal-card"><div class="iframe-modal-top"><span id="file-title">文件预览</span><button id="file-close" class="text-button">关闭</button></div><pre id="file-content"></pre></div></div>
     <div id="image-modal" class="modal-backdrop" hidden><div class="image-modal-card"><button id="image-close" class="text-button">关闭</button><img id="image-expanded" alt="图片预览"></div></div>
-    <div id="iframe-modal" class="modal-backdrop" hidden><div class="iframe-modal-card"><div class="iframe-modal-top"><span>页面预览</span><select id="iframe-size" aria-label="预览大小"><option value="60">小</option><option value="80">中</option><option value="92" selected>大</option><option value="98">全屏</option></select><button id="iframe-close" class="text-button">关闭</button></div><iframe id="iframe-expanded" title="页面预览" sandbox="allow-scripts allow-forms allow-popups allow-downloads"></iframe></div></div>
+    <div id="iframe-modal" class="iframe-float-layer" hidden>
+      <div class="iframe-modal-card" role="dialog" aria-label="展开预览">
+        <div id="iframe-drag-handle" class="iframe-modal-top">
+          <span><i class="floating-live-dot"></i>展开预览</span>
+          <label class="iframe-slider-control">透明度 <input id="iframe-opacity" type="range" min="20" max="100" value="80" step="5"><output id="iframe-opacity-value">80%</output></label>
+          <div class="iframe-opacity-presets" aria-label="快捷调整预览透明度">
+            <button type="button" data-opacity="20" title="透：20%">透</button>
+            <button type="button" data-opacity="100" title="明：100%">明</button>
+          </div>
+          <label class="iframe-slider-control">大小 <input id="iframe-size" type="range" min="20" max="100" value="60" step="2"><output id="iframe-size-value">60%</output></label>
+          <div class="iframe-size-presets" aria-label="快捷调整预览大小">
+            <button type="button" data-size="100" title="大：100%">大</button>
+            <button type="button" data-size="60" class="active" title="中：60%">中</button>
+            <button type="button" data-size="40" title="小：40%">小</button>
+          </div>
+          <button id="iframe-close" class="text-button">关闭</button>
+        </div>
+        <iframe id="iframe-expanded" name="realcode-floating-preview" data-realcode-control-target="true" title="展开预览" sandbox="allow-scripts allow-forms allow-downloads"></iframe>
+      </div>
+    </div>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

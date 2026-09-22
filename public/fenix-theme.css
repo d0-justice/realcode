@@ -116,6 +116,24 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, summary:focu
 .conversation-heading p { color: #94a3b8; font-size: 10px; }
 .conversation-heading .text-button { color: var(--fenix-muted); }
 .conversation-heading .text-button:hover { background: #e6f0ff; color: var(--fenix-brand); }
+.conversation-actions { display: flex; align-items: center; gap: 7px; }
+.browser-bridge-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #dbe4ee;
+  border-radius: 9px;
+  background: #fff;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 650;
+}
+.browser-bridge-button:hover { border-color: #bfdbfe; background: #eff6ff; color: var(--fenix-brand); }
+.browser-bridge-button i { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+.browser-bridge-button.connected { border-color: #bbf7d0; background: #f0fdf4; color: #047857; }
+.browser-bridge-button.connected i { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.13); }
 .message-list { padding: 15px max(24px, calc((100% - 768px)/2)); }
 .welcome-symbol { color: var(--fenix-brand); }
 .welcome h2 { color: #0f172a; }
@@ -252,6 +270,31 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, summary:focu
 .event-top { color: var(--fenix-brand); }
 .event-top time, .event-item pre { color: #94a3b8; }
 .permission-card, .file-modal-card, .iframe-modal-card { box-shadow: 0 18px 60px rgba(15,23,42,.2); }
+.browser-pairing-card {
+  width: min(560px, 100%);
+  padding: 24px;
+  border: 1px solid rgba(255,255,255,.9);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(15,23,42,.24);
+}
+.browser-modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.browser-modal-heading h2 { margin: 4px 0 0; color: #0f172a; font-size: 20px; }
+.browser-kicker { color: var(--fenix-brand); font-size: 10px; font-weight: 800; letter-spacing: .15em; }
+.browser-modal-status { display: flex; align-items: center; gap: 12px; margin: 20px 0; padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.browser-modal-status > i { width: 10px; height: 10px; flex: none; border-radius: 50%; background: #94a3b8; }
+.browser-modal-status.connected { border-color: #bbf7d0; background: #f0fdf4; }
+.browser-modal-status.connected > i { background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
+.browser-modal-status div { display: grid; gap: 3px; }
+.browser-modal-status strong { color: #334155; font-size: 13px; }
+.browser-modal-status span { color: #94a3b8; font-size: 11px; }
+.browser-steps { margin: 0 0 20px; padding-left: 24px; color: #64748b; font-size: 12px; line-height: 1.9; }
+.browser-steps code, .browser-meta code { color: #1759dc; font-family: ui-monospace, "Cascadia Code", monospace; }
+.browser-meta > span { display: block; margin-bottom: 7px; color: #64748b; font-size: 11px; font-weight: 650; }
+.browser-meta { margin-top: 14px; }
+.browser-meta code { display: block; overflow: hidden; padding: 10px 11px; border-radius: 9px; background: #eff6ff; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.browser-modal-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 15px; border-top: 1px solid #e2e8f0; }
+.browser-modal-actions span { color: #94a3b8; font-size: 10px; }
 .permission-options button { background: #e6f0ff; color: #1759dc; }
 .question-fields input, .question-fields select { border-color: #cbd5e1; }
 .error-banner { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Webservice Skill"
+  short_description: "Develop, validate, reload, and inspect web plugins"
+  default_prompt: "Use $webservice-skill to add, validate, reload, or troubleshoot a webservice plugin safely."

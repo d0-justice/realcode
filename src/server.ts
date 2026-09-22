@@ -2,11 +2,22 @@ import { resolve, sep } from "node:path";
 import { mkdir, readFile, realpath, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { AcpSessionLab } from "./acp-session";
+import { BrowserBridge, isBrowserMethod } from "./browser-bridge";
 import { createResource, deleteResource, listResources, renameResource, resourceDownloadName, resourceFile, uploadResource } from "./workspace-resources";
 
 const port = Number(process.env.MYOPENCODE_PORT ?? 4173);
 const workspace = process.env.MYOPENCODE_WORKSPACE ?? resolve(import.meta.dir, "../workspace");
-const lab = new AcpSessionLab(workspace);
+const browserBridge = new BrowserBridge();
+const lab = new AcpSessionLab(workspace, {
+  browserMcp: {
+    command: process.execPath,
+    args: [resolve(import.meta.dir, "browser-mcp-server.ts")],
+    env: {
+      REALCODE_BROWSER_API: `http://127.0.0.1:${port}/api/browser/command`,
+      REALCODE_BROWSER_SECRET: browserBridge.internalSecret,
+    },
+  },
+});
 const publicDir = resolve(import.meta.dir, "../public");
 const clientBuild = await Bun.build({ entrypoints: [resolve(publicDir, "app.js")], target: "browser", minify: false });
 if (!clientBuild.success) throw new Error(`浏览器脚本构建失败：${clientBuild.logs.join("; ")}`);
@@ -22,16 +33,32 @@ async function body(request: Request): Promise<Record<string, unknown>> {
   return value as Record<string, unknown>;
 }
 
-const server = Bun.serve({
+const server = Bun.serve<{ kind: "extension" }>({
   hostname: "127.0.0.1",
   port,
   idleTimeout: 0,
-  async fetch(request) {
+  async fetch(request, bunServer) {
     const url = new URL(request.url);
     try {
+      if (request.method === "GET" && url.pathname === "/browser-extension") {
+        const origin = request.headers.get("origin");
+        if (origin && !origin.startsWith("chrome-extension://")) return json({ error: "仅允许 Chrome 扩展连接" }, 403);
+        if (bunServer.upgrade(request, { data: { kind: "extension" } })) return;
+        return json({ error: "WebSocket 升级失败" }, 400);
+      }
       const origin = request.headers.get("origin");
       if (origin && origin !== url.origin) return json({ error: "仅允许本页面发起请求" }, 403);
-      if (request.method === "GET" && url.pathname === "/api/status") return json(lab.status());
+      if (request.method === "GET" && url.pathname === "/api/status") return json({ ...lab.status(), browser: browserBridge.status() });
+      if (request.method === "GET" && url.pathname === "/api/browser/status") return json(browserBridge.status());
+      if (request.method === "GET" && url.pathname === "/api/browser/pairing") return json(browserBridge.pairing());
+      if (request.method === "POST" && url.pathname === "/api/browser/rotate-token") return json(browserBridge.rotatePairingToken());
+      if (request.method === "POST" && url.pathname === "/api/browser/command") {
+        if (request.headers.get("authorization") !== `Bearer ${browserBridge.internalSecret}`) return json({ error: "浏览器工具认证失败" }, 401);
+        const data = await body(request);
+        if (!isBrowserMethod(data.method)) return json({ error: "浏览器工具无效" }, 400);
+        const args = data.args && typeof data.args === "object" && !Array.isArray(data.args) ? data.args as Record<string, unknown> : {};
+        return json({ result: await browserBridge.command(data.method, args, 60_000) });
+      }
       if (request.method === "GET" && url.pathname === "/api/session/messages") return json(lab.messageSnapshot());
       if (request.method === "GET" && url.pathname === "/api/workspace/resources") return json({ entries: await listResources(workspace) });
       if (request.method === "GET" && url.pathname === "/api/workspace/raw") {
@@ -82,8 +109,11 @@ const server = Bun.serve({
           start(controller) {
             const encoder = new TextEncoder();
             const send = (event: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-            send({ type: "status", at: new Date().toISOString(), data: lab.status() });
+            send({ type: "status", at: new Date().toISOString(), data: { ...lab.status(), browser: browserBridge.status() } });
             unsubscribe = lab.subscribe(send);
+            const unsubscribeBrowser = browserBridge.subscribe(send);
+            const unsubscribeAll = unsubscribe;
+            unsubscribe = () => { unsubscribeAll(); unsubscribeBrowser(); };
             heartbeat = setInterval(() => controller.enqueue(encoder.encode(": ping\n\n")), 15_000);
           },
           cancel() { unsubscribe(); clearInterval(heartbeat); },
@@ -163,9 +193,14 @@ const server = Bun.serve({
       return json({ error: message }, 400);
     }
   },
+  websocket: {
+    open(socket) { browserBridge.open(socket); },
+    message(socket, message) { browserBridge.message(socket, message); },
+    close(socket) { browserBridge.close(socket); },
+  },
 });
 
 console.log(`RealCode: http://127.0.0.1:${server.port}`);
 console.log(`workspace: ${lab.workspace}`);
-process.on("SIGINT", () => { lab.close(); server.stop(); });
-process.on("SIGTERM", () => { lab.close(); server.stop(); });
+process.on("SIGINT", () => { browserBridge.shutdown(); lab.close(); server.stop(); });
+process.on("SIGTERM", () => { browserBridge.shutdown(); lab.close(); server.stop(); });

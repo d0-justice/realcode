@@ -1,0 +1,27 @@
+# Build a Linux x86_64 CPython 3.11 binary wheel for the deployed Fastsite host.
+FROM python:3.11-slim-bookworm AS build
+
+WORKDIR /build
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-build.txt ./
+RUN python -m pip install -r requirements-build.txt
+
+COPY pyproject.toml build_embedded_config.py build_secure_wheel.py ./
+COPY src ./src
+
+# The private config is mounted only for this command and never enters an image layer.
+ARG FASTSITE_BUILD_NONCE=required
+RUN --mount=type=secret,id=fastsite_config,required=true \
+    test "$FASTSITE_BUILD_NONCE" != required && \
+    python build_secure_wheel.py \
+      --config /run/secrets/fastsite_config \
+      --output-dir /build/dist-secure
+
+FROM scratch AS export
+COPY --from=build /build/dist-secure/ /

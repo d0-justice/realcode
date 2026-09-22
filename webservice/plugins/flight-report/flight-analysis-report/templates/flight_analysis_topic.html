@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>飞行架次分析报告专题</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { font: 14px Arial, "Microsoft YaHei", sans-serif; color: #172033; background: #eef3f8; }
+    .app { height: 100vh; min-height: 680px; display: grid; grid-template-columns: 304px minmax(0, 1fr); overflow: hidden; }
+    aside { overflow: auto; padding: 16px 12px 24px; background: #f8fafc; border-right: 1px solid #d8e1eb; }
+    h1 { margin: 3px 6px 5px; font-size: 19px; color: #173e66; }
+    .intro { margin: 0 6px 16px; color: #64748b; font-size: 12px; line-height: 1.55; }
+    .month { margin: 0 0 12px; padding: 12px; border: 1px solid #d9e2ec; border-radius: 7px; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .04); }
+    .month-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+    h2 { margin: 0; font-size: 15px; color: #253b53; }
+    .monthly-link { flex: 0 0 auto; border: 1px solid #9fd4b3; border-radius: 4px; background: #eaf7ee; color: #146c3b; padding: 4px 7px; font: 11px Arial, "Microsoft YaHei", sans-serif; cursor: pointer; }
+    .monthly-link:hover { border-color: #4da46e; background: #d9f0e1; }
+    .monthly-link.active { box-shadow: inset 0 0 0 2px #1769aa; border-color: #1769aa; }
+    .monthly-link.absent { border-color: #e2e8f0; background: #f8fafc; color: #94a3b8; cursor: pointer; }
+    .weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .weekdays { margin-bottom: 5px; color: #7b8797; font-size: 10px; text-align: center; }
+    .day { min-width: 0; min-height: 37px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; padding: 3px 1px; color: #64748b; font: inherit; text-align: center; }
+    .day strong, .day small { display: block; }
+    .day strong { font-size: 12px; line-height: 15px; }
+    .day small { font-size: 9px; line-height: 12px; }
+    .day.ready { border-color: #9fd4b3; background: #eaf7ee; color: #146c3b; cursor: pointer; }
+    .day.ready:hover { background: #d9f0e1; border-color: #4da46e; }
+    .day.ready.active { box-shadow: inset 0 0 0 2px #1769aa; border-color: #1769aa; }
+    .day.absent { opacity: .58; cursor: not-allowed; }
+    .day.empty { visibility: hidden; }
+    .viewer { position: relative; min-width: 0; background: #cbd5e1; }
+    iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+    .empty-report { display: grid; place-items: center; height: 100%; background: #fff; color: #64748b; font-size: 16px; }
+    .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(241, 245, 249, .82); opacity: 0; pointer-events: none; transition: opacity .15s; }
+    .loading.visible { opacity: 1; pointer-events: auto; }
+    .panel { display: flex; gap: 12px; align-items: center; padding: 16px 18px; background: #fff; border: 1px solid #d6e0eb; border-radius: 6px; box-shadow: 0 12px 30px rgba(15, 23, 42, .16); font-weight: 600; color: #334155; }
+    .modal { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(15, 23, 42, .38); }
+    .modal.visible { display: flex; }
+    .modal-card { width: min(420px, 100%); padding: 22px; border-radius: 7px; background: #fff; box-shadow: 0 18px 45px rgba(15, 23, 42, .25); }
+    .modal-card h3 { margin: 0 0 10px; color: #9a5b00; font-size: 17px; }
+    .modal-card p { margin: 0; color: #536274; line-height: 1.65; }
+    .modal-card button { float: right; margin-top: 18px; border: 1px solid #1769aa; border-radius: 4px; padding: 6px 14px; background: #1769aa; color: #fff; cursor: pointer; }
+    .spinner { width: 21px; height: 21px; border: 3px solid #d8e5f1; border-top-color: #1769aa; border-radius: 50%; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 760px) { .app { height: 100vh; min-height: 0; grid-template-columns: 1fr; grid-template-rows: 1fr; overflow: hidden; } aside { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside>
+      <h1>飞行架次分析报告专题</h1>
+      <p class="intro">选择已生成日期，在右侧打开对应的静态分析报告。</p>
+      {% for month in months %}
+      <section class="month">
+        <div class="month-heading"><h2>{{ month.year }} 年 {{ month.month }} 月</h2>{% if month.monthly_ready %}<button type="button" class="monthly-link open-report{% if month.month_key == selected_month %} active{% endif %}" data-url="{{ month.monthly_url }}">月度报告</button>{% else %}<button type="button" class="monthly-link absent unavailable-month" data-month="{{ month.month_key }}">暂无月报</button>{% endif %}</div>
+        <div class="weekdays">{% for weekday in weekdays %}<span>{{ weekday }}</span>{% endfor %}</div>
+        <div class="grid">
+          {% for week in month.weeks %}{% for item in week %}
+          {% if item is none %}<span class="day empty" aria-hidden="true"></span>
+          {% elif item.ready %}<button type="button" class="day ready open-report{% if item.day == selected_day %} active{% endif %}" data-day="{{ item.day }}" data-url="{{ item.url }}"><strong>{{ item.number }}</strong><small>已生成</small></button>
+          {% else %}<button type="button" class="day absent" disabled><strong>{{ item.number }}</strong><small>暂无</small></button>{% endif %}
+          {% endfor %}{% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+    </aside>
+    <section class="viewer">
+      {% if not selected_day %}<div class="empty-report">暂无已发布的每日飞行报告。</div>{% endif %}
+      <iframe id="report" src="{{ initial_url }}" title="每日飞行报告"></iframe>
+      <div id="loading" class="loading"><div class="panel"><span class="spinner"></span><span>正在加载报告</span></div></div>
+    </section>
+  </main>
+  <div id="unavailableModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="unavailableTitle"><div class="modal-card"><h3 id="unavailableTitle">月度报告暂不可生成</h3><p id="unavailableText"></p><button type="button" id="closeModal">知道了</button></div></div>
+  <script>
+    const frame = document.getElementById('report');
+    const loading = document.getElementById('loading');
+    const buttons = [...document.querySelectorAll('.open-report')];
+    const unavailableButtons = [...document.querySelectorAll('.unavailable-month')];
+    const modal = document.getElementById('unavailableModal');
+    const modalText = document.getElementById('unavailableText');
+    function showUnavailable(month) {
+      const human = `${month.slice(0, 4)} 年 ${Number(month.slice(4, 6))} 月`;
+      modalText.textContent = `${human}月度报告尚未发布。生成前必须确认该月每日飞行报告的 SQLite 缓存完整；若存在缺失日期，请先补齐对应日报缓存后再生成月报。`;
+      modal.classList.add('visible');
+    }
+    function openReport(button) {
+      buttons.forEach(item => item.classList.toggle('active', item === button));
+      loading.classList.add('visible');
+      frame.src = button.dataset.url;
+    }
+    frame.addEventListener('load', () => loading.classList.remove('visible'));
+    buttons.forEach(button => button.addEventListener('click', () => openReport(button)));
+    unavailableButtons.forEach(button => button.addEventListener('click', () => showUnavailable(button.dataset.month)));
+    document.getElementById('closeModal').addEventListener('click', () => modal.classList.remove('visible'));
+    modal.addEventListener('click', event => { if (event.target === modal) modal.classList.remove('visible'); });
+    {% if unavailable_month %}showUnavailable('{{ unavailable_month }}');{% endif %}
+  </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "RealCode Browser Bridge",
+  "description": "Let RealCode inspect and operate the browser tab you explicitly select.",
+  "version": "0.6.2",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "debugger", "scripting", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["src/content/floating-preview-navigation.js"],
+    "all_frames": true,
+    "match_about_blank": true,
+    "run_at": "document_start",
+    "world": "MAIN"
+  }],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "RealCode Browser Bridge",
+    "default_popup": "src/popup/popup.html"
+  }
+}

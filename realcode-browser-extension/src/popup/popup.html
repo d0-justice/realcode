@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RealCode Browser Bridge</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand">
+        <div class="mark" aria-hidden="true"><span></span><span></span></div>
+        <div>
+          <p class="eyebrow">REALCODE</p>
+          <h1>Browser Bridge</h1>
+        </div>
+        <span id="statusDot" class="status-dot" data-status="disconnected" title="连接状态"></span>
+      </header>
+
+      <section class="status-card" aria-live="polite">
+        <p class="status-label">连接状态</p>
+        <p id="statusText" class="status-text">正在读取状态…</p>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <span>控制页面</span>
+          <span id="permissionBadge" class="badge allowed">安装时已授权</span>
+        </div>
+        <div class="tab-card">
+          <div>
+            <p id="tabTitle" class="tab-title">尚未选择标签页</p>
+            <p id="tabUrl" class="tab-url">点击下方按钮选择当前页面</p>
+          </div>
+          <button id="selectTabButton" class="icon-button" title="选择当前标签页" aria-label="选择当前标签页">↗</button>
+        </div>
+      </section>
+
+      <section class="section settings">
+        <button id="settingsToggle" class="section-heading toggle" aria-expanded="false">
+          <span>连接设置</span><span class="chevron">⌄</span>
+        </button>
+        <div id="settingsPanel" class="settings-panel" hidden>
+          <label>
+            <span>WebSocket 地址</span>
+            <input id="serverUrl" type="url" spellcheck="false" placeholder="ws://127.0.0.1:4173/browser-extension" />
+          </label>
+          <p class="auto-pairing">配对令牌会从当前 RealCode 页面自动获取。</p>
+          <label class="check-row">
+            <input id="autoConnect" type="checkbox" />
+            <span>浏览器启动后自动连接</span>
+          </label>
+          <button id="saveButton" class="button quiet">保存设置</button>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button id="testButton" class="button quiet">测试读取</button>
+        <button id="connectButton" class="button primary">连接 RealCode</button>
+      </div>
+      <pre id="testOutput" class="test-output" hidden></pre>
+      <p id="feedback" class="feedback" aria-live="polite"></p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

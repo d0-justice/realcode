@@ -5,7 +5,7 @@ import { groupByRecency } from "./session-grouping.js";
 import { createResourceBrowser } from "./resource-browser.js";
 
 const $ = (selector) => document.querySelector(selector);
-const state = { connected: false, sessionId: null, busy: false, messages: new Map(), pendingPermission: null, pendingQuestion: null, title: "新会话", supportsImages: false, agentSupportsImages: false, files: [], images: [], commands: [], planEntries: [], usage: null, workspace: "", snapshotMessages: [] };
+const state = { connected: false, sessionId: null, busy: false, messages: new Map(), pendingPermission: null, pendingQuestion: null, title: "新会话", supportsImages: false, agentSupportsImages: false, files: [], images: [], commands: [], planEntries: [], usage: null, workspace: "", snapshotMessages: [], browser: { connected: false, authenticated: false, selectedTabId: null } };
 const list = $("#message-list");
 const trace = $("#event-list");
 let toastTimer;
@@ -49,6 +49,28 @@ function renderStatus() {
   $("#attach-image").disabled = !state.connected || !state.sessionId || state.busy || !state.supportsImages;
   $("#session-id").textContent = state.sessionId || "NO SESSION";
   $("#conversation-title").textContent = state.title;
+}
+
+function renderBrowserBridge(status = state.browser) {
+  state.browser = status ?? { connected: false, authenticated: false, selectedTabId: null };
+  const ready = state.browser.connected && state.browser.authenticated;
+  const selected = Number.isInteger(state.browser.selectedTabId);
+  const button = $("#browser-bridge-button");
+  button.classList.toggle("connected", ready);
+  button.querySelector("span").textContent = ready ? (selected ? "扩展已连接" : "请选择标签页") : "扩展未连接";
+  const card = $("#browser-modal-status");
+  card.classList.toggle("connected", ready);
+  card.querySelector("strong").textContent = ready ? "Chrome 扩展已连接" : "扩展未连接";
+  card.querySelector("span").textContent = ready
+    ? `${state.browser.extensionVersion ? `版本 ${state.browser.extensionVersion} · ` : ""}${selected ? `标签页 ${state.browser.selectedTabId}` : "尚未选择标签页"}`
+    : "安装扩展后使用下方令牌配对";
+}
+
+async function openBrowserPairing() {
+  const pairing = await api("/api/browser/pairing");
+  $("#browser-websocket-url").textContent = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/browser-extension`;
+  renderBrowserBridge(pairing.status);
+  $("#browser-modal").hidden = false;
 }
 
 function renderActivity(snapshotMessages = []) {
@@ -170,6 +192,7 @@ function onEvent(event) {
       $("#workspace-path").textContent = event.data.workspace;
       state.workspace = event.data.workspace;
       state.usage = event.data.lastUsage;
+      renderBrowserBridge(event.data.browser);
       renderConfig(event.data.configOptions);
       if (event.data.questions?.length) showQuestion(event.data.questions[0]);
       if (event.data.permissions?.length) showPermission(event.data.permissions[0]);
@@ -177,6 +200,7 @@ function onEvent(event) {
     }
     renderStatus();
   }
+  if (event.type === "browser_bridge") renderBrowserBridge(event.data);
   if (event.type === "session_reset") {
     resetMessages();
     if (event.data.sessionId === null) { state.sessionId = null; state.title = "新会话"; renderStatus(); }
@@ -332,6 +356,15 @@ $("#trace-toggle").addEventListener("click", () => {
   if (!panel.hidden) resourceBrowser.open();
 });
 $("#clear-events").addEventListener("click", () => trace.replaceChildren());
+$("#browser-bridge-button").addEventListener("click", () => openBrowserPairing().catch((error) => toast(error.message)));
+$("#browser-modal-close").addEventListener("click", () => { $("#browser-modal").hidden = true; });
+$("#browser-rotate-token").addEventListener("click", async () => {
+  try {
+    const pairing = await api("/api/browser/rotate-token", {});
+    renderBrowserBridge(pairing.status);
+    toast("已更新配对令牌，扩展将自动重新连接");
+  } catch (error) { toast(error.message); }
+});
 list.addEventListener("scroll", updateScrollButton);
 $("#scroll-bottom").addEventListener("click", () => list.scrollTo({ top: list.scrollHeight, behavior: "smooth" }));
 $("#error-close").addEventListener("click", () => { $("#error-banner").hidden = true; });
@@ -385,7 +418,135 @@ for (const category of ["mode", "model", "effort"]) {
 $("#iframe-close").addEventListener("click", () => { $("#iframe-modal").hidden = true; $("#iframe-expanded").removeAttribute("src"); });
 $("#file-close").addEventListener("click", () => { $("#file-modal").hidden = true; });
 $("#image-close").addEventListener("click", () => { $("#image-modal").hidden = true; $("#image-expanded").removeAttribute("src"); });
-$("#iframe-size").addEventListener("change", (event) => { $("#iframe-modal .iframe-modal-card").style.width = `${event.target.value}vw`; });
+$("#iframe-size").addEventListener("input", (event) => {
+  setIframeSize(Number(event.target.value));
+});
+function setIframeSize(value) {
+  const rect = iframeFloatCard.getBoundingClientRect();
+  const fixedTop = rect.top;
+  const fixedRightInset = Math.max(0, innerWidth - rect.right);
+  iframeFloatCard.style.left = "auto";
+  iframeFloatCard.style.right = `${fixedRightInset}px`;
+  iframeFloatCard.style.top = `${fixedTop}px`;
+  iframeFloatCard.style.width = `${value}vw`;
+  alignIframeFloatBottom();
+  $("#iframe-size").value = String(value);
+  $("#iframe-size-value").value = `${value}%`;
+  document.querySelectorAll(".iframe-size-presets button").forEach((button) => {
+    button.classList.toggle("active", Number(button.dataset.size) === value);
+  });
+  requestAnimationFrame(syncIframeConversationLayout);
+}
+document.querySelectorAll(".iframe-size-presets button").forEach((button) => {
+  button.addEventListener("click", () => setIframeSize(Number(button.dataset.size)));
+});
+$("#iframe-opacity").addEventListener("input", (event) => {
+  setIframeOpacity(Number(event.target.value));
+});
+function setIframeOpacity(value) {
+  iframeFloatCard.style.opacity = String(value / 100);
+  $("#iframe-opacity").value = String(value);
+  $("#iframe-opacity-value").value = `${value}%`;
+  document.querySelectorAll(".iframe-opacity-presets button").forEach((button) => {
+    button.classList.toggle("active", Number(button.dataset.opacity) === value);
+  });
+}
+document.querySelectorAll(".iframe-opacity-presets button").forEach((button) => {
+  button.addEventListener("click", () => setIframeOpacity(Number(button.dataset.opacity)));
+});
+
+const iframeDragHandle = $("#iframe-drag-handle");
+const iframeFloatCard = $("#iframe-modal .iframe-modal-card");
+const iframeFloatLayer = $("#iframe-modal");
+let iframeDrag;
+
+window.addEventListener("message", (event) => {
+  const message = event.data;
+  const expanded = $("#iframe-expanded");
+  if (
+    event.source !== expanded.contentWindow ||
+    !message ||
+    message.type !== "realcode-floating-preview-probe" ||
+    typeof message.nonce !== "string"
+  ) return;
+  event.source.postMessage({ type: "realcode-floating-preview-ack", nonce: message.nonce }, "*");
+});
+
+function dockIframeFloat() {
+  const conversation = $(".conversation");
+  const heading = $(".conversation-heading");
+  if (!conversation || !heading || iframeFloatLayer.hidden) return;
+  const parentRect = conversation.getBoundingClientRect();
+  const headingRect = heading.getBoundingClientRect();
+  iframeFloatCard.style.left = "auto";
+  iframeFloatCard.style.top = `${headingRect.bottom}px`;
+  iframeFloatCard.style.right = `${Math.max(0, innerWidth - parentRect.right)}px`;
+  alignIframeFloatBottom();
+  syncIframeConversationLayout();
+}
+
+function alignIframeFloatBottom() {
+  const composer = $("#composer");
+  if (!composer || iframeFloatLayer.hidden) return;
+  const cardTop = iframeFloatCard.getBoundingClientRect().top;
+  const composerTop = composer.getBoundingClientRect().top;
+  iframeFloatCard.style.height = `${Math.max(180, composerTop - cardTop)}px`;
+  iframeFloatCard.style.maxHeight = `${Math.max(180, innerHeight - cardTop)}px`;
+}
+
+function syncIframeConversationLayout() {
+  const conversation = $(".conversation");
+  if (!conversation) return;
+  if (iframeFloatLayer.hidden) {
+    conversation.classList.remove("preview-open");
+    conversation.style.removeProperty("--preview-content-shift");
+    return;
+  }
+  const shift = Math.min(
+    iframeFloatCard.getBoundingClientRect().width * 0.35,
+    conversation.clientWidth * 0.28,
+  );
+  conversation.style.setProperty("--preview-content-shift", `${shift}px`);
+  conversation.classList.add("preview-open");
+}
+
+new MutationObserver(() => {
+  if (iframeFloatLayer.hidden) {
+    syncIframeConversationLayout();
+    return;
+  }
+  iframeFloatCard.dataset.detached = "false";
+  requestAnimationFrame(dockIframeFloat);
+}).observe(iframeFloatLayer, { attributes: true, attributeFilter: ["hidden"] });
+window.addEventListener("resize", () => {
+  requestAnimationFrame(() => {
+    if (iframeFloatCard.dataset.detached !== "true") dockIframeFloat();
+    else syncIframeConversationLayout();
+  });
+});
+
+iframeDragHandle.addEventListener("pointerdown", (event) => {
+  if (event.target.closest("button,select,input,label")) return;
+  const rect = iframeFloatCard.getBoundingClientRect();
+  iframeFloatCard.style.left = `${rect.left}px`;
+  iframeFloatCard.style.top = `${rect.top}px`;
+  iframeFloatCard.style.right = "auto";
+  iframeFloatCard.dataset.detached = "true";
+  iframeDrag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+  iframeDragHandle.setPointerCapture(event.pointerId);
+});
+iframeDragHandle.addEventListener("pointermove", (event) => {
+  if (!iframeDrag || iframeDrag.pointerId !== event.pointerId) return;
+  const maxLeft = Math.max(0, innerWidth - iframeFloatCard.offsetWidth);
+  const maxTop = Math.max(0, innerHeight - iframeFloatCard.offsetHeight);
+  iframeFloatCard.style.left = `${Math.min(maxLeft, Math.max(0, event.clientX - iframeDrag.offsetX))}px`;
+  iframeFloatCard.style.top = `${Math.min(maxTop, Math.max(0, event.clientY - iframeDrag.offsetY))}px`;
+});
+iframeDragHandle.addEventListener("pointerup", (event) => {
+  if (!iframeDrag || iframeDrag.pointerId !== event.pointerId) return;
+  iframeDrag = undefined;
+  iframeDragHandle.releasePointerCapture(event.pointerId);
+});
 $("#composer").addEventListener("submit", async (event) => {
   event.preventDefault();
   const input = $("#prompt-input");

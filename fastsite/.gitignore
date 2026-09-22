@@ -1,0 +1,16 @@
+/build/
+/dist/
+/src/*.egg-info/
+/config/databases.toml
+/build-config.yml
+/src/fastsite/_compiled_config.pyx
+/src/fastsite/_compiled_config*.c
+/src/fastsite/_compiled_config*.so
+/src/fastsite/_compiled_config*.pyd
+/src/fastsite/*.so
+/src/fastsite/*.pyd
+/src/fastsite/*.c
+/src/fastsite/connectors/*.so
+/src/fastsite/connectors/*.pyd
+/src/fastsite/connectors/*.c
+/dist-secure/

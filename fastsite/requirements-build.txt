@@ -1,0 +1,5 @@
+Cython>=3.0,<4
+cryptography>=41,<45
+PyYAML>=6,<7
+setuptools>=65
+wheel>=0.41,<1

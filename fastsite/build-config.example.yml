@@ -1,0 +1,32 @@
+# Copy to build-config.yml. This file is private and must never be committed.
+# It is encrypted and compiled into fastsite/_compiled_config.so during release.
+databases:
+  mysql:
+    db_type: mysql
+    host: 127.0.0.1
+    port: 3306
+    database: business_db
+    user: readonly_user
+    password: replace-with-real-password
+    charset: utf8mb4
+    connect_timeout_seconds: 5
+    read_timeout_seconds: 30
+    write_timeout_seconds: 30
+    pool_size: 4
+    pool_max_overflow: 5
+    pool_wait_timeout_seconds: 15
+
+  doris:
+    db_type: doris
+    host: 127.0.0.1
+    port: 9030
+    database: flight_data
+    user: readonly_user
+    password: replace-with-real-password
+    charset: utf8mb4
+    connect_timeout_seconds: 5
+    read_timeout_seconds: 120
+    write_timeout_seconds: 30
+    pool_size: 4
+    pool_max_overflow: 5
+    pool_wait_timeout_seconds: 15

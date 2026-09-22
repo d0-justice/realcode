@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>高空飞行分析报告专题</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { font: 14px Arial, "Microsoft YaHei", sans-serif; color: #172033; background: #eef3f8; }
+    .app { height: 100vh; min-height: 680px; display: grid; grid-template-columns: 304px minmax(0, 1fr); overflow: hidden; }
+    aside { overflow: auto; padding: 16px 12px 24px; background: #f8fafc; border-right: 1px solid #d8e1eb; }
+    h1 { margin: 3px 6px 5px; font-size: 19px; color: #173e66; }
+    .intro { margin: 0 6px 16px; color: #64748b; font-size: 12px; line-height: 1.55; }
+    .month { margin: 0 0 12px; padding: 12px; border: 1px solid #d9e2ec; border-radius: 7px; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .04); }
+    h2 { margin: 0 0 10px; font-size: 15px; color: #253b53; }
+    .weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .weekdays { margin-bottom: 5px; color: #7b8797; font-size: 10px; text-align: center; }
+    .day { min-width: 0; min-height: 37px; border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc; padding: 3px 1px; color: #64748b; font: inherit; text-align: center; }
+    .day strong, .day small { display: block; }
+    .day strong { font-size: 12px; line-height: 15px; }
+    .day small { font-size: 9px; line-height: 12px; }
+    .day.ready { border-color: #9fd4b3; background: #eaf7ee; color: #146c3b; cursor: pointer; }
+    .day.ready:hover { background: #d9f0e1; border-color: #4da46e; }
+    .day.ready.active { box-shadow: inset 0 0 0 2px #1769aa; border-color: #1769aa; }
+    .day.absent { opacity: .58; cursor: not-allowed; }
+    .day.empty { visibility: hidden; }
+    .viewer { position: relative; min-width: 0; background: #cbd5e1; }
+    iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+    .empty { display: grid; place-items: center; height: 100%; background: #fff; color: #64748b; font-size: 16px; }
+    .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(241, 245, 249, .82); opacity: 0; pointer-events: none; transition: opacity .15s; }
+    .loading.visible { opacity: 1; pointer-events: auto; }
+    .panel { display: flex; gap: 12px; align-items: center; padding: 16px 18px; background: #fff; border: 1px solid #d6e0eb; border-radius: 6px; box-shadow: 0 12px 30px rgba(15, 23, 42, .16); font-weight: 600; color: #334155; }
+    .spinner { width: 21px; height: 21px; border: 3px solid #d8e5f1; border-top-color: #1769aa; border-radius: 50%; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 760px) { .app { min-height: 0; grid-template-columns: 1fr; } aside { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <aside>
+      <h1>高空飞行分析报告专题</h1>
+      <p class="intro">选择已生成日期，在右侧查看对应的高空飞行分析报告。</p>
+      {% for month in months %}
+      <section class="month">
+        <h2>{{ month.year }}-{{ "%02d"|format(month.month) }}</h2>
+        <div class="weekdays">{% for weekday in weekdays %}<span>{{ weekday }}</span>{% endfor %}</div>
+        <div class="grid">
+          {% for week in month.weeks %}{% for item in week %}
+          {% if item is none %}<span class="day empty" aria-hidden="true"></span>
+          {% elif item.ready %}<button type="button" class="day ready open-report{% if item.day == selected_day %} active{% endif %}" data-url="{{ item.url }}"><strong>{{ item.number }}</strong><small>已生成</small></button>
+          {% else %}<button type="button" class="day absent" disabled><strong>{{ item.number }}</strong><small>暂无</small></button>{% endif %}
+          {% endfor %}{% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+    </aside>
+    <section class="viewer">
+      {% if not selected_day %}<div class="empty">暂无已发布的高空飞行分析报告。</div>{% endif %}
+      <iframe id="report" src="{{ initial_url }}" title="高空飞行分析报告"></iframe>
+      <div id="loading" class="loading"><div class="panel"><span class="spinner"></span><span>正在加载报告</span></div></div>
+    </section>
+  </main>
+  <script>
+    const frame = document.getElementById('report');
+    const loading = document.getElementById('loading');
+    const buttons = [...document.querySelectorAll('.open-report')];
+    function openReport(button) {
+      buttons.forEach(item => item.classList.toggle('active', item === button));
+      loading.classList.add('visible');
+      frame.src = button.dataset.url;
+    }
+    frame.addEventListener('load', () => loading.classList.remove('visible'));
+    buttons.forEach(button => button.addEventListener('click', () => openReport(button)));
+  </script>
+</body>
+</html>
