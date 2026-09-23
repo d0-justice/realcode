@@ -40,6 +40,7 @@ export function createFloatingWindow({ $, api, toast }) {
   let detachedRightGap = 0;
   let currentFile;
   let currentUrl;
+  let currentSource;
   let editorLoaded = false;
   let dirty = false;
   let layoutFrame;
@@ -72,7 +73,21 @@ export function createFloatingWindow({ $, api, toast }) {
     saveButton.hidden = !editable;
   }
 
-  function showFrame(url, title, filePath) {
+  function setPreviewSource(source) {
+    currentSource?.classList.remove("floating-preview-source-active");
+    currentSource = source;
+    currentSource?.classList.add("floating-preview-source-active");
+  }
+
+  function focus() {
+    if (layer.hidden) return;
+    card.classList.remove("floating-window-attention");
+    void card.offsetWidth;
+    card.classList.add("floating-window-attention");
+  }
+
+  function showFrame(url, title, filePath, source) {
+    setPreviewSource(source);
     currentFile = filePath;
     currentUrl = url;
     editorLoaded = false;
@@ -91,7 +106,7 @@ export function createFloatingWindow({ $, api, toast }) {
     layer.hidden = false;
   }
 
-  function openFrame(url, title = "展开预览") { showFrame(url, title); }
+  function openFrame(url, title = "展开预览", source) { showFrame(url, title, undefined, source); }
   function openFile(path, url) { showFrame(url, path, path); }
 
   async function showEditor() {
@@ -123,6 +138,7 @@ export function createFloatingWindow({ $, api, toast }) {
   }
 
   function close() {
+    setPreviewSource();
     layer.hidden = true;
     frame.removeAttribute("src");
     editor.value = "";
@@ -344,5 +360,5 @@ export function createFloatingWindow({ $, api, toast }) {
   bindLayoutObservers();
   bindDragEvents();
 
-  return { openFrame, openFile, close };
+  return { openFrame, openFile, close, focus };
 }

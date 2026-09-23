@@ -155,7 +155,7 @@ function renderContext(snapshotMessages = state.snapshotMessages) {
 }
 
 const floatingWindow = createFloatingWindow({ $, api, toast });
-const { upsertMessage, syncMessages, resetMessages, updateScrollButton } = createChatView({ $, state, list, api, toast, renderActivity, renderContext, openFloatingPreview: floatingWindow.openFrame });
+const { upsertMessage, syncMessages, resetMessages, updateScrollButton } = createChatView({ $, state, list, api, toast, renderActivity, renderContext, openFloatingPreview: floatingWindow.openFrame, focusFloatingPreview: floatingWindow.focus });
 
 function appendTrace(event) {
   const item = document.createElement("div");

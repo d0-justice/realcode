@@ -5,7 +5,7 @@ import { parseEscapedIframeSrc, parseLocalIframeSrc } from "./escaped-iframe.js"
 import { configurePreviewFrame } from "./floating-window.js";
 import { splitSystemReminderBlocks } from "./system-reminder.js";
 
-export function createChatView({ $, state, list, api, toast, renderActivity, renderContext, openFloatingPreview }) {
+export function createChatView({ $, state, list, api, toast, renderActivity, renderContext, openFloatingPreview, focusFloatingPreview }) {
 const welcomeTemplate = list.querySelector(".welcome").cloneNode(true);
 let syncPromise;
 let syncAgain = false;
@@ -13,6 +13,27 @@ function iframeUrl(text) {
   const value = text.trim();
   const escaped = value.startsWith("<iframe") ? value.replaceAll("<", "&lt;").replaceAll(">", "&gt;") : value;
   return parseEscapedIframeSrc(escaped) ?? parseLocalIframeSrc(escaped);
+}
+
+function createIframeShell(frame, url) {
+  const shell = document.createElement("div");
+  shell.className = "message-iframe-shell";
+  const status = document.createElement("button");
+  status.type = "button";
+  status.className = "message-iframe-status";
+  const statusLabel = document.createElement("span");
+  statusLabel.textContent = "已在浮窗中预览";
+  status.append(statusLabel);
+  status.addEventListener("click", () => focusFloatingPreview?.());
+  if (frame.parentNode) frame.replaceWith(shell);
+  shell.append(frame, status);
+  return {
+    shell,
+    open: () => {
+      shell.classList.add("floating-preview-source-active");
+      openFloatingPreview(url, frame.title, shell);
+    },
+  };
 }
 
 function renderContent(body, role, text) {
@@ -27,6 +48,7 @@ function renderContent(body, role, text) {
       frame.loading = "lazy";
       configurePreviewFrame(frame, url);
       frame.className = "message-iframe";
+      const preview = createIframeShell(frame, url);
       const link = document.createElement("a");
       link.href = url;
       link.target = "_blank";
@@ -36,8 +58,8 @@ function renderContent(body, role, text) {
       const expand = document.createElement("button");
       expand.className = "iframe-expand";
       expand.textContent = "展开预览";
-      expand.addEventListener("click", () => openFloatingPreview(url));
-      body.append(frame, expand, link);
+      expand.addEventListener("click", preview.open);
+      body.append(preview.shell, expand, link);
       body.dataset.iframeUrl = url;
       return;
     }
@@ -58,17 +80,18 @@ function renderContent(body, role, text) {
       frame.loading = "lazy";
       configurePreviewFrame(frame, url);
       frame.className = "message-iframe";
+      const preview = createIframeShell(frame, url);
       const expand = document.createElement("button");
       expand.className = "iframe-expand";
       expand.textContent = "展开预览";
-      expand.addEventListener("click", () => openFloatingPreview(url));
+      expand.addEventListener("click", preview.open);
       const link = document.createElement("a");
       link.className = "iframe-link";
       link.href = url;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.textContent = "新窗口打开 ↗";
-      frame.after(expand, link);
+      preview.shell.after(expand, link);
     }
     for (const node of body.querySelectorAll("img[src], a[href]")) {
       const attr = node.tagName === "IMG" ? "src" : "href";
