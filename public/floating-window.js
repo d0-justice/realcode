@@ -28,6 +28,14 @@ export function createFloatingWindow({ $, api, toast }) {
   const previewButton = $("#floating-preview-mode");
   const editButton = $("#floating-edit-mode");
   const saveButton = $("#floating-save");
+  const closeButton = $("#iframe-close");
+  const sizeOutput = $("#iframe-size-value");
+  const opacityOutput = $("#iframe-opacity-value");
+  const sizeInput = $("#iframe-size");
+  const opacityInput = $("#iframe-opacity");
+  const opacityModeButton = $("#iframe-opacity-mode");
+  const sizePresetButtons = [...document.querySelectorAll(".iframe-size-presets button")];
+  const opacityPresetButtons = [...document.querySelectorAll(".iframe-opacity-presets button")];
   let drag;
   let detachedRightGap = 0;
   let currentFile;
@@ -197,11 +205,11 @@ export function createFloatingWindow({ $, api, toast }) {
   }
 
   function setSize(value) {
-    value = Math.min(80, Math.max(20, value));
+    value = Math.min(100, Math.max(20, value));
     card.style.width = `${value}%`;
-    $("#iframe-size").value = String(value);
-    $("#iframe-size-value").value = `${value}%`;
-    document.querySelectorAll(".iframe-size-presets button").forEach((button) => {
+    sizeInput.value = String(value);
+    sizeOutput.value = `${value}%`;
+    sizePresetButtons.forEach((button) => {
       button.classList.toggle("active", Number(button.dataset.size) === value);
     });
     scheduleLayoutSync();
@@ -209,85 +217,132 @@ export function createFloatingWindow({ $, api, toast }) {
 
   function setOpacity(value) {
     card.style.setProperty("--preview-edge-opacity", String(value / 100));
-    $("#iframe-opacity").value = String(value);
-    $("#iframe-opacity-value").value = `${value}%`;
-    document.querySelectorAll(".iframe-opacity-presets button").forEach((button) => {
+    opacityInput.value = String(value);
+    opacityOutput.value = `${value}%`;
+    opacityPresetButtons.forEach((button) => {
       button.classList.toggle("active", Number(button.dataset.opacity) === value);
     });
   }
 
   function setOpacityMode(edgeOnly) {
-    const modeButton = $("#iframe-opacity-mode");
     card.classList.toggle("edge-opacity-only", edgeOnly);
-    modeButton.setAttribute("aria-pressed", String(edgeOnly));
-    modeButton.title = edgeOnly ? "点击切换为整体透明" : "点击切换为左侧局部透明";
-    modeButton.textContent = edgeOnly ? "左侧透明度" : "整体透明度";
+    opacityModeButton.setAttribute("aria-pressed", String(edgeOnly));
+    opacityModeButton.title = edgeOnly ? "点击切换为整体透明" : "点击切换为左侧局部透明";
+    opacityModeButton.textContent = edgeOnly ? "左侧透明度" : "整体透明度";
     if (edgeOnly) syncOverlapOpacity();
   }
 
-  $("#iframe-close").addEventListener("click", close);
-  $("#iframe-size").addEventListener("input", (event) => setSize(Number(event.target.value)));
-  document.querySelectorAll(".iframe-size-presets button").forEach((button) => button.addEventListener("click", () => setSize(Number(button.dataset.size))));
-  $("#iframe-opacity").addEventListener("input", (event) => setOpacity(Number(event.target.value)));
-  document.querySelectorAll(".iframe-opacity-presets button").forEach((button) => button.addEventListener("click", () => setOpacity(Number(button.dataset.opacity))));
-  $("#iframe-opacity-mode").addEventListener("click", () => setOpacityMode(!card.classList.contains("edge-opacity-only")));
-  previewButton.addEventListener("click", () => setMode("preview"));
-  editButton.addEventListener("click", () => void showEditor());
-  saveButton.addEventListener("click", () => void save());
-  editor.addEventListener("input", () => { dirty = true; updateSaveState(); });
-  editor.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); void save(); }
-  });
-
-  window.addEventListener("message", (event) => {
-    const message = event.data;
-    if (event.source !== frame.contentWindow || !message || message.type !== "realcode-floating-preview-probe" || typeof message.nonce !== "string") return;
-    event.source.postMessage({ type: "realcode-floating-preview-ack", nonce: message.nonce }, "*");
-  });
-
-  new MutationObserver(() => {
-    if (!layer.hidden) { card.dataset.detached = "false"; detachedRightGap = 0; }
-    scheduleLayoutSync();
-  }).observe(layer, { attributes: true, attributeFilter: ["hidden"] });
-
-  window.addEventListener("resize", scheduleLayoutSync);
-  if (typeof ResizeObserver !== "undefined") {
-    const layoutObserver = new ResizeObserver(scheduleLayoutSync);
-    layoutObserver.observe(conversation);
-    layoutObserver.observe(card);
+  function bindToolbarEvents() {
+    closeButton.addEventListener("click", close);
+    sizeInput.addEventListener("input", (event) => setSize(Number(event.target.value)));
+    sizePresetButtons.forEach((button) => {
+      button.addEventListener("click", () => setSize(Number(button.dataset.size)));
+    });
+    opacityInput.addEventListener("input", (event) => setOpacity(Number(event.target.value)));
+    opacityPresetButtons.forEach((button) => {
+      button.addEventListener("click", () => setOpacity(Number(button.dataset.opacity)));
+    });
+    opacityModeButton.addEventListener("click", () => {
+      setOpacityMode(!card.classList.contains("edge-opacity-only"));
+    });
+    previewButton.addEventListener("click", () => setMode("preview"));
+    editButton.addEventListener("click", () => void showEditor());
+    saveButton.addEventListener("click", () => void save());
   }
-  const inspector = $("#inspector");
-  if (inspector) new MutationObserver(scheduleLayoutSync).observe(inspector, { attributes: true, attributeFilter: ["hidden"] });
 
-  dragHandle.addEventListener("pointerdown", (event) => {
-    if (event.target.closest("button,select,input,label,textarea")) return;
-    const rect = card.getBoundingClientRect();
-    const parentRect = conversation.getBoundingClientRect();
-    card.style.left = `${rect.left - parentRect.left}px`;
-    card.style.top = `${rect.top - parentRect.top}px`;
-    card.style.right = "auto";
-    card.dataset.detached = "true";
-    detachedRightGap = Math.max(0, parentRect.right - rect.right);
-    drag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
-    dragHandle.setPointerCapture(event.pointerId);
-  });
-  dragHandle.addEventListener("pointermove", (event) => {
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const parentRect = conversation.getBoundingClientRect();
-    const maxLeft = Math.max(0, conversation.clientWidth - card.offsetWidth);
-    const maxTop = Math.max(0, relativeTop($("#composer")) - 180);
-    const left = Math.min(maxLeft, Math.max(0, event.clientX - parentRect.left - drag.offsetX));
-    card.style.left = `${left}px`;
-    card.style.top = `${Math.min(maxTop, Math.max(0, event.clientY - parentRect.top - drag.offsetY))}px`;
-    detachedRightGap = Math.max(0, conversation.clientWidth - left - card.offsetWidth);
-    alignBottom();
-    syncConversationLayout();
-  });
-  dragHandle.addEventListener("pointerup", (event) => {
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    drag = undefined;
-    dragHandle.releasePointerCapture(event.pointerId);
-  });
+  function bindEditorEvents() {
+    editor.addEventListener("input", () => {
+      dirty = true;
+      updateSaveState();
+    });
+    editor.addEventListener("keydown", (event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      void save();
+    });
+  }
+
+  function bindFrameBridge() {
+    window.addEventListener("message", (event) => {
+      const message = event.data;
+      if (event.source !== frame.contentWindow || !message || message.type !== "realcode-floating-preview-probe" || typeof message.nonce !== "string") return;
+      event.source.postMessage({ type: "realcode-floating-preview-ack", nonce: message.nonce }, "*");
+    });
+  }
+
+  function bindLayoutObservers() {
+    new MutationObserver(() => {
+      if (!layer.hidden) {
+        card.dataset.detached = "false";
+        detachedRightGap = 0;
+      }
+      scheduleLayoutSync();
+    }).observe(layer, { attributes: true, attributeFilter: ["hidden"] });
+
+    window.addEventListener("resize", scheduleLayoutSync);
+    if (typeof ResizeObserver !== "undefined") {
+      const layoutObserver = new ResizeObserver(scheduleLayoutSync);
+      layoutObserver.observe(conversation);
+      layoutObserver.observe(card);
+    }
+
+    const inspector = $("#inspector");
+    if (inspector) {
+      new MutationObserver(scheduleLayoutSync).observe(inspector, {
+        attributes: true,
+        attributeFilter: ["hidden"],
+      });
+    }
+  }
+
+  function bindDragEvents() {
+    function beginDrag(event) {
+      if (event.target.closest("button,select,input,label,textarea")) return;
+      const rect = card.getBoundingClientRect();
+      const parentRect = conversation.getBoundingClientRect();
+      card.style.left = rect.left - parentRect.left + "px";
+      card.style.top = rect.top - parentRect.top + "px";
+      card.style.right = "auto";
+      card.dataset.detached = "true";
+      detachedRightGap = Math.max(0, parentRect.right - rect.right);
+      drag = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+      };
+      dragHandle.setPointerCapture(event.pointerId);
+    }
+
+    function moveDrag(event) {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const parentRect = conversation.getBoundingClientRect();
+      const maxLeft = Math.max(0, conversation.clientWidth - card.offsetWidth);
+      const maxTop = Math.max(0, relativeTop($("#composer")) - 180);
+      const left = Math.min(maxLeft, Math.max(0, event.clientX - parentRect.left - drag.offsetX));
+      card.style.left = left + "px";
+      card.style.top = Math.min(maxTop, Math.max(0, event.clientY - parentRect.top - drag.offsetY)) + "px";
+      detachedRightGap = Math.max(0, conversation.clientWidth - left - card.offsetWidth);
+      alignBottom();
+      syncConversationLayout();
+    }
+
+    function endDrag(event) {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      drag = undefined;
+      if (dragHandle.hasPointerCapture(event.pointerId)) dragHandle.releasePointerCapture(event.pointerId);
+    }
+
+    dragHandle.addEventListener("pointerdown", beginDrag);
+    dragHandle.addEventListener("pointermove", moveDrag);
+    dragHandle.addEventListener("pointerup", endDrag);
+    dragHandle.addEventListener("pointercancel", endDrag);
+  }
+
+  bindToolbarEvents();
+  bindEditorEvents();
+  bindFrameBridge();
+  bindLayoutObservers();
+  bindDragEvents();
 
   return { openFrame, openFile, close };
 }
