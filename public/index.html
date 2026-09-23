@@ -66,23 +66,28 @@
     <div id="file-modal" class="modal-backdrop" hidden><div class="file-modal-card"><div class="iframe-modal-top"><span id="file-title">文件预览</span><button id="file-close" class="text-button">关闭</button></div><pre id="file-content"></pre></div></div>
     <div id="image-modal" class="modal-backdrop" hidden><div class="image-modal-card"><button id="image-close" class="text-button">关闭</button><img id="image-expanded" alt="图片预览"></div></div>
     <div id="iframe-modal" class="iframe-float-layer" hidden>
-      <div class="iframe-modal-card" role="dialog" aria-label="展开预览">
+      <div class="iframe-modal-card edge-opacity-only" role="dialog" aria-label="展开预览">
         <div id="iframe-drag-handle" class="iframe-modal-top">
-          <span><i class="floating-live-dot"></i>展开预览</span>
-          <label class="iframe-slider-control">透明度 <input id="iframe-opacity" type="range" min="20" max="100" value="80" step="5"><output id="iframe-opacity-value">80%</output></label>
+          <span><i class="floating-live-dot"></i><b id="iframe-title">展开预览</b></span>
+          <div id="floating-file-actions" class="floating-file-actions" hidden><button id="floating-preview-mode" type="button" class="active">预览</button><button id="floating-edit-mode" type="button">编辑</button><button id="floating-save" type="button" disabled>保存</button></div>
+          <div class="iframe-slider-control"><button id="iframe-opacity-mode" class="iframe-opacity-mode-button" type="button" aria-pressed="true" title="点击切换为整体透明">左侧透明度</button><input id="iframe-opacity" type="range" min="20" max="100" value="90" step="5" aria-label="预览透明度"><output id="iframe-opacity-value">90%</output></div>
           <div class="iframe-opacity-presets" aria-label="快捷调整预览透明度">
             <button type="button" data-opacity="20" title="透：20%">透</button>
+            <button type="button" data-opacity="90" class="active" title="中：90%">中</button>
             <button type="button" data-opacity="100" title="明：100%">明</button>
           </div>
-          <label class="iframe-slider-control">大小 <input id="iframe-size" type="range" min="20" max="100" value="60" step="2"><output id="iframe-size-value">60%</output></label>
+          <label class="iframe-slider-control">大小 <input id="iframe-size" type="range" min="20" max="80" value="60" step="2"><output id="iframe-size-value">60%</output></label>
           <div class="iframe-size-presets" aria-label="快捷调整预览大小">
-            <button type="button" data-size="100" title="大：100%">大</button>
+            <button type="button" data-size="80" title="大：80%">大</button>
             <button type="button" data-size="60" class="active" title="中：60%">中</button>
             <button type="button" data-size="40" title="小：40%">小</button>
           </div>
           <button id="iframe-close" class="text-button">关闭</button>
         </div>
-        <iframe id="iframe-expanded" name="realcode-floating-preview" data-realcode-control-target="true" title="展开预览" sandbox="allow-scripts allow-forms allow-downloads"></iframe>
+        <div class="floating-window-body">
+          <iframe id="iframe-expanded" name="realcode-floating-preview" data-realcode-control-target="true" title="展开预览" sandbox="allow-scripts allow-forms allow-downloads"></iframe>
+          <section id="floating-editor-pane" class="floating-editor-pane" hidden><textarea id="floating-editor" spellcheck="false" aria-label="文件编辑器"></textarea><div class="floating-editor-hint">Ctrl+S 保存</div></section>
+        </div>
       </div>
     </div>
     <script type="module" src="/app.js"></script>

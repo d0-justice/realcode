@@ -1,6 +1,7 @@
 import { createAttachments } from "./attachments.js";
 import { createChatView } from "./chat-view.js";
 import { createDialogs } from "./dialogs.js";
+import { createFloatingWindow } from "./floating-window.js";
 import { groupByRecency } from "./session-grouping.js";
 import { createResourceBrowser } from "./resource-browser.js";
 
@@ -153,7 +154,8 @@ function renderContext(snapshotMessages = state.snapshotMessages) {
   }
 }
 
-const { upsertMessage, syncMessages, resetMessages, updateScrollButton } = createChatView({ $, state, list, api, toast, renderActivity, renderContext });
+const floatingWindow = createFloatingWindow({ $, api, toast });
+const { upsertMessage, syncMessages, resetMessages, updateScrollButton } = createChatView({ $, state, list, api, toast, renderActivity, renderContext, openFloatingPreview: floatingWindow.openFrame });
 
 function appendTrace(event) {
   const item = document.createElement("div");
@@ -173,7 +175,7 @@ function appendTrace(event) {
 }
 
 const { showPermission, answerPermission, showQuestion, answerQuestion } = createDialogs({ $, state, api, toast });
-const resourceBrowser = createResourceBrowser({ $, api, toast });
+const resourceBrowser = createResourceBrowser({ $, api, toast, openFile: floatingWindow.openFile });
 
 function onEvent(event) {
   appendTrace(event);
@@ -415,138 +417,8 @@ for (const category of ["mode", "model", "effort"]) {
     catch (error) { select.value = select.dataset.currentValue; toast(error.message); }
   });
 }
-$("#iframe-close").addEventListener("click", () => { $("#iframe-modal").hidden = true; $("#iframe-expanded").removeAttribute("src"); });
 $("#file-close").addEventListener("click", () => { $("#file-modal").hidden = true; });
 $("#image-close").addEventListener("click", () => { $("#image-modal").hidden = true; $("#image-expanded").removeAttribute("src"); });
-$("#iframe-size").addEventListener("input", (event) => {
-  setIframeSize(Number(event.target.value));
-});
-function setIframeSize(value) {
-  const rect = iframeFloatCard.getBoundingClientRect();
-  const fixedTop = rect.top;
-  const fixedRightInset = Math.max(0, innerWidth - rect.right);
-  iframeFloatCard.style.left = "auto";
-  iframeFloatCard.style.right = `${fixedRightInset}px`;
-  iframeFloatCard.style.top = `${fixedTop}px`;
-  iframeFloatCard.style.width = `${value}vw`;
-  alignIframeFloatBottom();
-  $("#iframe-size").value = String(value);
-  $("#iframe-size-value").value = `${value}%`;
-  document.querySelectorAll(".iframe-size-presets button").forEach((button) => {
-    button.classList.toggle("active", Number(button.dataset.size) === value);
-  });
-  requestAnimationFrame(syncIframeConversationLayout);
-}
-document.querySelectorAll(".iframe-size-presets button").forEach((button) => {
-  button.addEventListener("click", () => setIframeSize(Number(button.dataset.size)));
-});
-$("#iframe-opacity").addEventListener("input", (event) => {
-  setIframeOpacity(Number(event.target.value));
-});
-function setIframeOpacity(value) {
-  iframeFloatCard.style.opacity = String(value / 100);
-  $("#iframe-opacity").value = String(value);
-  $("#iframe-opacity-value").value = `${value}%`;
-  document.querySelectorAll(".iframe-opacity-presets button").forEach((button) => {
-    button.classList.toggle("active", Number(button.dataset.opacity) === value);
-  });
-}
-document.querySelectorAll(".iframe-opacity-presets button").forEach((button) => {
-  button.addEventListener("click", () => setIframeOpacity(Number(button.dataset.opacity)));
-});
-
-const iframeDragHandle = $("#iframe-drag-handle");
-const iframeFloatCard = $("#iframe-modal .iframe-modal-card");
-const iframeFloatLayer = $("#iframe-modal");
-let iframeDrag;
-
-window.addEventListener("message", (event) => {
-  const message = event.data;
-  const expanded = $("#iframe-expanded");
-  if (
-    event.source !== expanded.contentWindow ||
-    !message ||
-    message.type !== "realcode-floating-preview-probe" ||
-    typeof message.nonce !== "string"
-  ) return;
-  event.source.postMessage({ type: "realcode-floating-preview-ack", nonce: message.nonce }, "*");
-});
-
-function dockIframeFloat() {
-  const conversation = $(".conversation");
-  const heading = $(".conversation-heading");
-  if (!conversation || !heading || iframeFloatLayer.hidden) return;
-  const parentRect = conversation.getBoundingClientRect();
-  const headingRect = heading.getBoundingClientRect();
-  iframeFloatCard.style.left = "auto";
-  iframeFloatCard.style.top = `${headingRect.bottom}px`;
-  iframeFloatCard.style.right = `${Math.max(0, innerWidth - parentRect.right)}px`;
-  alignIframeFloatBottom();
-  syncIframeConversationLayout();
-}
-
-function alignIframeFloatBottom() {
-  const composer = $("#composer");
-  if (!composer || iframeFloatLayer.hidden) return;
-  const cardTop = iframeFloatCard.getBoundingClientRect().top;
-  const composerTop = composer.getBoundingClientRect().top;
-  iframeFloatCard.style.height = `${Math.max(180, composerTop - cardTop)}px`;
-  iframeFloatCard.style.maxHeight = `${Math.max(180, innerHeight - cardTop)}px`;
-}
-
-function syncIframeConversationLayout() {
-  const conversation = $(".conversation");
-  if (!conversation) return;
-  if (iframeFloatLayer.hidden) {
-    conversation.classList.remove("preview-open");
-    conversation.style.removeProperty("--preview-content-shift");
-    return;
-  }
-  const shift = Math.min(
-    iframeFloatCard.getBoundingClientRect().width * 0.35,
-    conversation.clientWidth * 0.28,
-  );
-  conversation.style.setProperty("--preview-content-shift", `${shift}px`);
-  conversation.classList.add("preview-open");
-}
-
-new MutationObserver(() => {
-  if (iframeFloatLayer.hidden) {
-    syncIframeConversationLayout();
-    return;
-  }
-  iframeFloatCard.dataset.detached = "false";
-  requestAnimationFrame(dockIframeFloat);
-}).observe(iframeFloatLayer, { attributes: true, attributeFilter: ["hidden"] });
-window.addEventListener("resize", () => {
-  requestAnimationFrame(() => {
-    if (iframeFloatCard.dataset.detached !== "true") dockIframeFloat();
-    else syncIframeConversationLayout();
-  });
-});
-
-iframeDragHandle.addEventListener("pointerdown", (event) => {
-  if (event.target.closest("button,select,input,label")) return;
-  const rect = iframeFloatCard.getBoundingClientRect();
-  iframeFloatCard.style.left = `${rect.left}px`;
-  iframeFloatCard.style.top = `${rect.top}px`;
-  iframeFloatCard.style.right = "auto";
-  iframeFloatCard.dataset.detached = "true";
-  iframeDrag = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
-  iframeDragHandle.setPointerCapture(event.pointerId);
-});
-iframeDragHandle.addEventListener("pointermove", (event) => {
-  if (!iframeDrag || iframeDrag.pointerId !== event.pointerId) return;
-  const maxLeft = Math.max(0, innerWidth - iframeFloatCard.offsetWidth);
-  const maxTop = Math.max(0, innerHeight - iframeFloatCard.offsetHeight);
-  iframeFloatCard.style.left = `${Math.min(maxLeft, Math.max(0, event.clientX - iframeDrag.offsetX))}px`;
-  iframeFloatCard.style.top = `${Math.min(maxTop, Math.max(0, event.clientY - iframeDrag.offsetY))}px`;
-});
-iframeDragHandle.addEventListener("pointerup", (event) => {
-  if (!iframeDrag || iframeDrag.pointerId !== event.pointerId) return;
-  iframeDrag = undefined;
-  iframeDragHandle.releasePointerCapture(event.pointerId);
-});
 $("#composer").addEventListener("submit", async (event) => {
   event.preventDefault();
   const input = $("#prompt-input");

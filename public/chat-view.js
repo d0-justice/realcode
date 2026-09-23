@@ -2,37 +2,13 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import hljs from "highlight.js/lib/common";
 import { parseEscapedIframeSrc, parseLocalIframeSrc } from "./escaped-iframe.js";
+import { configurePreviewFrame } from "./floating-window.js";
 import { splitSystemReminderBlocks } from "./system-reminder.js";
 
-export function createChatView({ $, state, list, api, toast, renderActivity, renderContext }) {
+export function createChatView({ $, state, list, api, toast, renderActivity, renderContext, openFloatingPreview }) {
 const welcomeTemplate = list.querySelector(".welcome").cloneNode(true);
 let syncPromise;
 let syncAgain = false;
-const LOCAL_FRAME_SANDBOX = "allow-scripts allow-forms allow-downloads";
-const EXTERNAL_FRAME_SANDBOX = `${LOCAL_FRAME_SANDBOX} allow-same-origin allow-modals allow-presentation`;
-
-function configurePreviewFrame(frame, url) {
-  const external = /^https?:\/\//i.test(url);
-  frame.setAttribute("sandbox", external ? EXTERNAL_FRAME_SANDBOX : LOCAL_FRAME_SANDBOX);
-  frame.referrerPolicy = "strict-origin-when-cross-origin";
-  if (external) {
-    frame.setAttribute("allow", "autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write");
-    frame.setAttribute("allowfullscreen", "");
-  } else {
-    frame.removeAttribute("allow");
-    frame.removeAttribute("allowfullscreen");
-  }
-}
-
-function openFloatingPreview(url) {
-  const expanded = $("#iframe-expanded");
-  configurePreviewFrame(expanded, url);
-  expanded.name = "realcode-floating-preview";
-  expanded.dataset.realcodeControlTarget = "true";
-  expanded.src = url;
-  $("#iframe-modal").hidden = false;
-}
-
 function iframeUrl(text) {
   const value = text.trim();
   const escaped = value.startsWith("<iframe") ? value.replaceAll("<", "&lt;").replaceAll(">", "&gt;") : value;

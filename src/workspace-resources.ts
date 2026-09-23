@@ -83,6 +83,13 @@ export async function resourceFile(workspace: string, path: string): Promise<{ t
   return { target, size: info.size };
 }
 
+export async function writeResource(workspace: string, path: string, content: string): Promise<void> {
+  if (typeof content !== "string" || Buffer.byteLength(content, "utf8") > 1_000_000) throw new Error("仅可保存 1 MB 以内的文本文件");
+  const { target } = await existing(workspace, path);
+  const info = await lstat(target);
+  if (!info.isFile()) throw new Error("仅可编辑工作区文件");
+  await writeFile(target, content, "utf8");
+}
 export async function createResource(workspace: string, path: string, isDir: boolean): Promise<void> {
   const target = await child(workspace, path);
   if (isDir) await mkdir(target);

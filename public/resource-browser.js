@@ -62,14 +62,8 @@ function makeButton(text, title, action, className = "") {
   return button;
 }
 
-function choosePreview(path) {
-  if (/\.(png|jpe?g|gif|webp|svg)$/i.test(path)) return "image";
-  if (/\.(html?|pdf)$/i.test(path)) return "frame";
-  return "text";
-}
-
 /** Local workspace file tree adapted from FenixAgent's FileTreeTab and PreviewTab flow. */
-export function createResourceBrowser({ $, api, toast }) {
+export function createResourceBrowser({ $, api, toast, openFile }) {
   const tree = $("#resource-tree");
   const status = $("#resource-status");
   const count = $("#resource-count");
@@ -113,19 +107,7 @@ export function createResourceBrowser({ $, api, toast }) {
 
   async function preview(path) {
     try {
-      const type = choosePreview(path);
-      if (type === "image") {
-        $("#image-expanded").src = fileUrl(path);
-        $("#image-modal").hidden = false;
-      } else if (type === "frame") {
-        $("#iframe-expanded").src = fileUrl(path);
-        $("#iframe-modal").hidden = false;
-      } else {
-        const result = await api(`/api/file?path=${encodeURIComponent(path)}`);
-        $("#file-title").textContent = path;
-        $("#file-content").textContent = result.content;
-        $("#file-modal").hidden = false;
-      }
+      openFile(path, fileUrl(path));
     } catch (error) { toast(error.message); }
   }
 
@@ -265,5 +247,6 @@ export function createResourceBrowser({ $, api, toast }) {
     await refresh();
   });
   document.addEventListener("click", (event) => { if (!tree.contains(event.target)) closeMenus(); });
+  document.addEventListener("realcode:workspace-file-saved", () => void refresh());
   return { refresh, open: () => { if (!loaded) void refresh(); } };
 }

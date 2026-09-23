@@ -3,7 +3,7 @@ import { mkdir, readFile, realpath, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { AcpSessionLab } from "./acp-session";
 import { BrowserBridge, isBrowserMethod } from "./browser-bridge";
-import { createResource, deleteResource, listResources, renameResource, resourceDownloadName, resourceFile, uploadResource } from "./workspace-resources";
+import { createResource, deleteResource, listResources, renameResource, resourceDownloadName, resourceFile, uploadResource, writeResource } from "./workspace-resources";
 
 const port = Number(process.env.MYOPENCODE_PORT ?? 4173);
 const workspace = process.env.MYOPENCODE_WORKSPACE ?? resolve(import.meta.dir, "../workspace");
@@ -76,7 +76,11 @@ const server = Bun.serve<{ kind: "extension" }>({
         await createResource(workspace, String(data.path ?? ""), data.isDir === true);
         return json({ ok: true });
       }
-      if (request.method === "POST" && url.pathname === "/api/workspace/rename") {
+      if (request.method === "POST" && url.pathname === "/api/workspace/write") {
+        const data = await body(request);
+        await writeResource(workspace, String(data.path ?? ""), String(data.content ?? ""));
+        return json({ ok: true });
+      }      if (request.method === "POST" && url.pathname === "/api/workspace/rename") {
         const data = await body(request);
         await renameResource(workspace, String(data.path ?? ""), String(data.name ?? ""));
         return json({ ok: true });
