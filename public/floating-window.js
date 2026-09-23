@@ -1,4 +1,4 @@
-const LOCAL_FRAME_SANDBOX = "allow-scripts allow-forms allow-downloads";
+const LOCAL_FRAME_SANDBOX = "allow-scripts allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox";
 const EXTERNAL_FRAME_SANDBOX = `${LOCAL_FRAME_SANDBOX} allow-same-origin allow-modals allow-presentation`;
 const EDITABLE_FILE = /\.(?:txt|md|mdx|js|jsx|mjs|cjs|ts|tsx|css|scss|less|html?|xml|svg|json|jsonc|ya?ml|toml|ini|conf|py|rb|php|java|c|cc|cpp|h|hpp|cs|go|rs|sh|bash|zsh|ps1|sql|vue|svelte)$/i;
 
