@@ -136,12 +136,13 @@ export function createFloatingWindow({ $, api, toast }) {
     card.style.maxHeight = `${Math.max(180, conversation.clientHeight - cardTop)}px`;
   }
 
-  function syncOverlapOpacity() {
+  function syncOverlapOpacity(shift = Number.parseFloat(conversation.style.getPropertyValue("--preview-content-shift")) || 0) {
     const cardRect = card.getBoundingClientRect();
+    const conversationRect = conversation.getBoundingClientRect();
     const messageList = $("#message-list");
-    const messageRect = messageList.getBoundingClientRect();
     const messageStyle = getComputedStyle(messageList);
-    const contentRight = messageRect.right - (Number.parseFloat(messageStyle.paddingRight) || 0);
+    const contentRight = conversationRect.left + messageList.offsetLeft + messageList.offsetWidth
+      - (Number.parseFloat(messageStyle.paddingRight) || 0) - shift;
     const overlapWidth = Math.min(cardRect.width, Math.max(0, contentRight - cardRect.left));
     const transitionWidth = Math.min(64, Math.max(24, overlapWidth * 0.16));
     const solidWidth = Math.max(0, overlapWidth - transitionWidth);
@@ -162,7 +163,7 @@ export function createFloatingWindow({ $, api, toast }) {
     const shift = Math.max(0, Math.min(messageInset, composerInset) - 12);
     conversation.style.setProperty("--preview-content-shift", `${shift}px`);
     conversation.classList.add("preview-open");
-    syncOverlapOpacity();
+    syncOverlapOpacity(shift);
   }
 
   function dock() {
