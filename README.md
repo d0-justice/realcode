@@ -1,6 +1,6 @@
 # RealCode
 
-一个独立的 OpenCode ACP 会话实验台。从 FenixAgent 的 `plugin-opencode`、`acp-link` 提取了会话验证所需的工作区、进程、ACP 通信与权限回传流程，不依赖 FenixAgent 的数据库、账户、调度器或 WebSocket relay。
+一个独立的 OpenCode ACP 会话实验台。
 
 ## 启动
 
@@ -31,9 +31,6 @@ RealCode 内置 Browser MCP Server，并通过 `realcode-browser-extension/` 中
 
 在 `realcode/` 目录运行 `py -3.12 -m venv workspace/.venv`，即可为工作区创建独立 Python 环境。启动 OpenCode 时，服务会将该环境的 `Scripts`（Windows）或 `bin` 目录放在 OpenCode 进程的 `PATH` 首位，并设置 `VIRTUAL_ENV`；聊天中的 `python`、`pip` 命令默认使用它。无需手动激活虚拟环境。安装依赖可运行 `workspace/.venv/Scripts/python.exe -m pip install 包名`（Windows）；环境位于忽略提交的 `workspace/` 下。创建或替换环境后重启 RealCode 服务，使 OpenCode 进程读取新的环境变量。
 
-完整功能来源、移植状态与尚需对应数据源的项目见 [FEATURES.md](FEATURES.md)。
-
-如需验证 FenixAgent 的模型、MCP 和 Skills 下发，复制 `launch.example.json` 为 `launch.json`，填写模型信息，再设置 `apiKeyEnv` 指向的环境变量。连接时实验台会生成 `workspace/.opencode/opencode.json`；`mcpServers` 包括 Hindsight 在内都会按配置接入，`skills` 可填写 `{ "name": "...", "url": "https://.../skill.zip" }`，下载后安装到 `workspace/.opencode/skills/`。`launch.json` 与工作区均已加入 `.gitignore`。
 
 可选环境变量：
 
@@ -45,16 +42,3 @@ RealCode 内置 Browser MCP Server，并通过 `realcode-browser-extension/` 中
 | `OPENCODE_BIN` | 自定义 OpenCode 可执行文件；默认使用本项目安装的 1.18.31 |
 | `MYOPENCODE_USE_GLOBAL_CONFIG` | 设为 `1` 时加载用户全局 OpenCode 插件及配置；默认隔离全局配置，仍可使用用户数据目录中的认证信息 |
 | `MYOPENCODE_LAUNCH_CONFIG` | 指定平台风格的启动配置 JSON，默认 `launch.json` |
-
-## 从 FenixAgent 提取的边界
-
-| 原位置 | 本项目位置 |
-| --- | --- |
-| `packages/plugin-opencode/src/opencode-handler.ts` 的 `opencode acp` 启动流程 | `src/acp-session.ts` 的 `connect()` |
-| `packages/acp-link/src/client/acp-spawn-helper.ts` 的 ACP 初始化、权限请求、会话更新 | `src/acp-session.ts` |
-| `packages/acp-link/src/acp-dispatcher.ts` 的会话创建、载入、列表、发送、取消 | `src/acp-session.ts` |
-| `packages/plugin-opencode/src/runtime/runtime-config.ts` 的模型、Agent 与 MCP 配置转换 | `src/launch-config.ts` |
-| `packages/plugin-opencode/src/runtime/skill-installer.ts` 的 Skills 暂存与整体替换 | `src/skill-installer.ts` |
-| FenixAgent 的 relay 与前端交互 | `src/server.ts` 的本地 HTTP/SSE 与 `public/` 页面 |
-
-页面专注于单个 OpenCode 进程和一个当前会话。平台的多租户调度和远程节点属于 FenixAgent 的平台环境，未搬入这个独立实验台。
