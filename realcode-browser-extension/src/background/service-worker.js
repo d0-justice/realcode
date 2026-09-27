@@ -1,4 +1,4 @@
-import { disconnectBrowserDebugger, executeBrowserCommand } from "./browser-tools.js";
+import { disconnectBrowserDebugger, executeBrowserCommand } from "../browser-automation/controller.js";
 import { getOrCreateClientId, getSettings, updateSettings } from "./storage.js";
 import { isCommand, PROTOCOL_VERSION, serializeError } from "../shared/protocol.js";
 
@@ -6,6 +6,9 @@ let socket = null;
 let reconnectTimer = null;
 let heartbeatTimer = null;
 let connectionState = { status: "disconnected", message: "尚未连接" };
+let commandQueue = Promise.resolve();
+let queuedCommands = 0;
+let pageStateSequence = 0;
 const RECONNECT_DELAY_MS = 10_000;
 
 function broadcastState() {
@@ -123,18 +126,39 @@ async function discoverRealCode(settings) {
 }
 
 async function handleCommand(command) {
-  const settings = await getSettings();
+  const startedAt = new Date();
+  send({ type: "command_event", id: command.id, phase: "executing", at: startedAt.toISOString(), queueDepth: queuedCommands });
   try {
+    const settings = await getSettings();
     const selectedTabId = await selectRealCodeTab(settings);
     const result = await executeBrowserCommand(command.method, command.args, selectedTabId);
-    if ((command.method === "browser.openTab" || command.method === "browser.switchTab") && Number.isInteger(result?.tabId)) {
-      await updateSettings({ selectedTabId: result.tabId, fallbackTabId: command.method === "browser.openTab" ? result.tabId : null });
+    if (command.method === "browser.openTab" && Number.isInteger(result?.tabId)) {
+      await updateSettings({ selectedTabId: result.tabId, fallbackTabId: result.tabId });
       send({ type: "state", selectedTabId: result.tabId });
     }
-    send({ type: "result", id: command.id, ok: true, result });
+    const finishedAt = new Date();
+    const timing = { startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), durationMs: finishedAt.getTime() - startedAt.getTime() };
+    if (command.method === "browser.observe" || command.method === "browser.act") {
+      if (result) send({ type: "page_state", sequence: ++pageStateSequence, commandId: command.id, state: result });
+    }
+    send({ type: "command_event", id: command.id, phase: "completed", at: finishedAt.toISOString(), durationMs: timing.durationMs, queueDepth: queuedCommands });
+    send({ type: "result", id: command.id, ok: true, result, timing });
   } catch (error) {
-    send({ type: "result", id: command.id, ok: false, error: serializeError(error) });
+    const finishedAt = new Date();
+    const timing = { startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), durationMs: finishedAt.getTime() - startedAt.getTime() };
+    if (/timed? out|timeout/i.test(error instanceof Error ? error.message : String(error))) await disconnectBrowserDebugger().catch(() => {});
+    send({ type: "command_event", id: command.id, phase: "failed", at: finishedAt.toISOString(), durationMs: timing.durationMs, queueDepth: queuedCommands });
+    send({ type: "result", id: command.id, ok: false, error: serializeError(error), timing });
   }
+}
+
+function enqueueCommand(command) {
+  queuedCommands += 1;
+  send({ type: "command_event", id: command.id, phase: "accepted", at: new Date().toISOString(), queueDepth: queuedCommands });
+  commandQueue = commandQueue
+    .catch(() => {})
+    .then(() => handleCommand(command))
+    .finally(() => { queuedCommands = Math.max(0, queuedCommands - 1); });
 }
 
 async function connect() {
@@ -190,7 +214,7 @@ async function connect() {
       heartbeatTimer = setInterval(() => send({ type: "ping", at: Date.now() }), 20_000);
       return;
     }
-    if (isCommand(message)) void handleCommand(message);
+    if (isCommand(message)) enqueueCommand(message);
   });
 
   nextSocket.addEventListener("close", (event) => {
@@ -261,9 +285,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const tab = await chrome.tabs.get(tabId);
         return { tab: { id: tab.id, title: tab.title, url: tab.url } };
       }
-      case "test-snapshot": {
+      case "test-observe": {
         const settings = await getSettings();
-        return executeBrowserCommand("browser.snapshot", { maxElements: 20, maxTextLength: 600 }, settings.selectedTabId);
+        return executeBrowserCommand("browser.observe", { maxActions: 20, maxTextLength: 600 }, settings.selectedTabId);
       }
       default:
         throw new Error("未知扩展消息");

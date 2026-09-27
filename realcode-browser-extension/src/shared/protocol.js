@@ -1,16 +1,10 @@
-export const PROTOCOL_VERSION = "realcode-browser-bridge/2";
+export const PROTOCOL_VERSION = "realcode-browser-bridge/3";
 
 export const COMMAND_METHODS = Object.freeze([
-  "browser.snapshot",
-  "browser.click",
-  "browser.fill",
-  "browser.select",
-  "browser.scroll",
+  "browser.observe",
+  "browser.act",
   "browser.screenshot",
-  "browser.navigate",
-  "browser.openTab",
-  "browser.switchTab",
-  "browser.wait"
+  "browser.openTab"
 ]);
 
 const commandSet = new Set(COMMAND_METHODS);

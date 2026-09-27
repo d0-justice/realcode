@@ -120,13 +120,14 @@ elements.testButton.addEventListener("click", async () => {
   elements.testButton.disabled = true;
   elements.testOutput.hidden = true;
   try {
-    const snapshot = await request({ type: "test-snapshot" });
-    const summary = snapshot.frames.map(({ frameId, result }) => ({
+    const observation = await request({ type: "test-observe" });
+    const summary = observation.frames.map(({ frameId, state, error }) => ({
       frameId,
-      url: result?.url,
-      title: result?.title,
-      elements: result?.elements?.length || 0,
-      text: result?.text?.slice(0, 120)
+      url: state?.url,
+      title: state?.title,
+      actions: state?.actions?.length || 0,
+      text: state?.text?.slice(0, 120),
+      error
     }));
     elements.testOutput.textContent = JSON.stringify(summary, null, 2);
     elements.testOutput.hidden = false;

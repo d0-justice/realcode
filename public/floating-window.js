@@ -7,7 +7,7 @@ export function configurePreviewFrame(frame, url) {
   frame.setAttribute("sandbox", external ? EXTERNAL_FRAME_SANDBOX : LOCAL_FRAME_SANDBOX);
   frame.referrerPolicy = "strict-origin-when-cross-origin";
   if (external) {
-    frame.setAttribute("allow", "autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write");
+    frame.setAttribute("allow", "encrypted-media; fullscreen; picture-in-picture; clipboard-write");
     frame.setAttribute("allowfullscreen", "");
   } else {
     frame.removeAttribute("allow");

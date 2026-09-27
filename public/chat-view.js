@@ -4,11 +4,13 @@ import hljs from "highlight.js/lib/common";
 import { parseEscapedIframeSrc, parseLocalIframeSrc } from "./escaped-iframe.js";
 import { configurePreviewFrame } from "./floating-window.js";
 import { splitSystemReminderBlocks } from "./system-reminder.js";
+import { BRAIN_ICON, CHEVRON_DOWN_ICON, CODE_XML_ICON, toolIcon } from "./chat-icons.js";
 
 export function createChatView({ $, state, list, api, toast, renderActivity, renderContext, openFloatingPreview, focusFloatingPreview }) {
 const welcomeTemplate = list.querySelector(".welcome").cloneNode(true);
 let syncPromise;
 let syncAgain = false;
+const thoughtCloseTimers = new WeakMap();
 function iframeUrl(text) {
   const value = text.trim();
   const escaped = value.startsWith("<iframe") ? value.replaceAll("<", "&lt;").replaceAll(">", "&gt;") : value;
@@ -65,7 +67,7 @@ function renderContent(body, role, text) {
     }
   }
   if (body.dataset.iframeUrl) delete body.dataset.iframeUrl;
-  if (role === "assistant" || role === "thought") {
+  if (role === "assistant") {
     body.innerHTML = DOMPurify.sanitize(marked.parse(text, { gfm: true, breaks: true }), {
       ADD_TAGS: ["iframe"],
       ADD_ATTR: ["src", "width", "height", "title", "loading", "sandbox"],
@@ -135,6 +137,17 @@ function narrateTool(title, details = {}) {
   return title;
 }
 
+function toolStatusLabel(status) {
+  switch (status) {
+    case "completed": case "complete": return "已完成";
+    case "failed": case "error": return "失败";
+    case "in_progress": case "running": return "进行中";
+    case "pending": case "waiting_for_confirmation": return "待确认";
+    case "cancelled": case "canceled": case "rejected": return "已取消";
+    default: return status ?? "进行中";
+  }
+}
+
 function upsertMessage({ id, role, text, images, details }) {
   const followBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 150;
   let row = state.messages.get(id);
@@ -149,11 +162,37 @@ function upsertMessage({ id, role, text, images, details }) {
     const body = document.createElement("div");
     body.className = "message-body";
     row.append(head, body);
+    if (role === "thought") {
+      head.innerHTML = `${BRAIN_ICON}<span class="thought-label"></span>${CHEVRON_DOWN_ICON}`;
+      if (state.busy && state.snapshotMessages.at(-1)?.id === id) { row.open = true; row.dataset.autoOpened = "true"; }
+      head.addEventListener("click", () => {
+        row.dataset.manualToggle = "true";
+        clearTimeout(thoughtCloseTimers.get(row));
+        thoughtCloseTimers.delete(row);
+      });
+    }
+    if (role === "tool") {
+      const icon = document.createElement("span");
+      icon.className = "tool-icon";
+      icon.setAttribute("aria-hidden", "true");
+      row.insertBefore(icon, head);
+    }
     list.append(row);
     state.messages.set(id, row);
   }
   renderContent(row.querySelector(".message-body"), role, role === "tool" ? narrateTool(text, details) : text);
-  if (role === "thought") row.querySelector(".message-header").textContent = state.busy ? "思考中…" : "思考过程";
+  if (role === "thought") {
+    const isStreamingThought = state.busy && state.snapshotMessages.at(-1)?.id === id;
+    row.querySelector(".thought-label").textContent = isStreamingThought ? "思考中..." : "思考了一会";
+    if (!isStreamingThought && row.dataset.autoOpened === "true" && row.dataset.manualToggle !== "true" && !thoughtCloseTimers.has(row)) {
+      thoughtCloseTimers.set(row, setTimeout(() => {
+        row.open = false;
+        row.dataset.autoOpened = "done";
+        thoughtCloseTimers.delete(row);
+      }, 1000));
+    }
+    if (isStreamingThought && row.dataset.autoOpened === "true") row.querySelector(".message-body").scrollTop = row.querySelector(".message-body").scrollHeight;
+  }
   if (role === "user") {
     let imagesNode = row.querySelector(".message-images");
     if (images?.length) {
@@ -183,18 +222,38 @@ function upsertMessage({ id, role, text, images, details }) {
   if (role === "tool" && details) {
     row.classList.toggle("hindsight", /^hindsight_/i.test(text));
     row.classList.toggle("subagent", details.kind === "agent" || /^(task|subagent)/i.test(text));
-    row.querySelector(".message-header").textContent = `工具调用 · ${details.status ?? "进行中"}`;
-    let detailNode = row.querySelector(".tool-details");
-    if (!detailNode) {
-      detailNode = document.createElement("details");
-      detailNode.className = "tool-details";
-      const summary = document.createElement("summary");
-      summary.textContent = "查看输入与输出";
-      const pre = document.createElement("pre");
-      detailNode.append(summary, pre);
-      row.append(detailNode);
+    const kind = String(details.kind ?? "").toLowerCase();
+    if (row.dataset.toolKind !== kind) {
+      row.dataset.toolKind = kind;
+      row.querySelector(".tool-icon").innerHTML = toolIcon(kind);
     }
-    detailNode.querySelector("pre").textContent = JSON.stringify(details, null, 2);
+    row.dataset.toolStatus = String(details.status ?? "running").toLowerCase();
+    row.querySelector(".message-header").textContent = toolStatusLabel(details.status);
+    let detailButton = row.querySelector(".tool-details-toggle");
+    if (!detailButton) {
+      detailButton = document.createElement("button");
+      detailButton.type = "button";
+      detailButton.className = "tool-details-toggle";
+      detailButton.innerHTML = `${CODE_XML_ICON}<span class="sr-only">查看输入与输出</span>`;
+      detailButton.title = "查看输入与输出";
+      detailButton.setAttribute("aria-expanded", "false");
+      const pre = document.createElement("pre");
+      pre.className = "tool-details-content";
+      pre.hidden = true;
+      pre.id = `tool-details-${crypto.randomUUID()}`;
+      detailButton.setAttribute("aria-controls", pre.id);
+      detailButton.addEventListener("click", () => {
+        const scrollTop = list.scrollTop;
+        pre.hidden = !pre.hidden;
+        list.scrollTop = scrollTop;
+        const label = pre.hidden ? "查看输入与输出" : "收起输入与输出";
+        detailButton.setAttribute("aria-expanded", String(!pre.hidden));
+        detailButton.title = label;
+        detailButton.querySelector(".sr-only").textContent = label;
+      });
+      row.append(detailButton, pre);
+    }
+    row.querySelector(".tool-details-content").textContent = JSON.stringify(details, null, 2);
     let files = row.querySelector(".tool-files");
     if (!files) { files = document.createElement("div"); files.className = "tool-files"; row.append(files); }
     files.replaceChildren();

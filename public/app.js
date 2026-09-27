@@ -4,6 +4,7 @@ import { createDialogs } from "./dialogs.js";
 import { createFloatingWindow } from "./floating-window.js";
 import { groupByRecency } from "./session-grouping.js";
 import { createResourceBrowser } from "./resource-browser.js";
+import { acknowledgeBrowserHandoff, closeTransferredPage } from "./browser-handoff.js";
 
 const $ = (selector) => document.querySelector(selector);
 const state = { connected: false, sessionId: null, busy: false, messages: new Map(), pendingPermission: null, pendingQuestion: null, title: "新会话", supportsImages: false, agentSupportsImages: false, files: [], images: [], commands: [], planEntries: [], usage: null, workspace: "", snapshotMessages: [], browser: { connected: false, authenticated: false, selectedTabId: null } };
@@ -11,6 +12,7 @@ const list = $("#message-list");
 const trace = $("#event-list");
 let toastTimer;
 let bootstrapPromise;
+let switchingBrowser = false;
 
 function toast(message) {
   const node = $("#toast");
@@ -54,24 +56,20 @@ function renderStatus() {
 
 function renderBrowserBridge(status = state.browser) {
   state.browser = status ?? { connected: false, authenticated: false, selectedTabId: null };
-  const ready = state.browser.connected && state.browser.authenticated;
-  const selected = Number.isInteger(state.browser.selectedTabId);
-  const button = $("#browser-bridge-button");
-  button.classList.toggle("connected", ready);
-  button.querySelector("span").textContent = ready ? (selected ? "扩展已连接" : "请选择标签页") : "扩展未连接";
-  const card = $("#browser-modal-status");
-  card.classList.toggle("connected", ready);
-  card.querySelector("strong").textContent = ready ? "Chrome 扩展已连接" : "扩展未连接";
-  card.querySelector("span").textContent = ready
-    ? `${state.browser.extensionVersion ? `版本 ${state.browser.extensionVersion} · ` : ""}${selected ? `标签页 ${state.browser.selectedTabId}` : "尚未选择标签页"}`
-    : "安装扩展后使用下方令牌配对";
-}
-
-async function openBrowserPairing() {
-  const pairing = await api("/api/browser/pairing");
-  $("#browser-websocket-url").textContent = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/browser-extension`;
-  renderBrowserBridge(pairing.status);
-  $("#browser-modal").hidden = false;
+  const stagehand = state.browser.provider === "stagehand";
+  const ready = stagehand && state.browser.connected && state.browser.authenticated;
+  const mode = $("#browser-mode-status");
+  mode.classList.toggle("controlled", ready);
+  mode.classList.toggle("unavailable", stagehand && !ready && !state.browser.switching);
+  mode.querySelector("span").textContent = stagehand
+    ? `受控模式${state.browser.switching ? " · 切换中" : ready ? "" : " · 未连接"}`
+    : `普通模式${state.browser.switching ? " · 切换中" : ""}`;
+  mode.title = state.browser.error || (ready ? "Agent 可以操作受控 Chrome 中的页面" : stagehand ? "受控浏览器未就绪" : "正常对话，需要操作网页时切换到受控模式");
+  const busy = switchingBrowser || Boolean(state.browser.switching);
+  const toggle = $("#browser-mode-toggle");
+  toggle.disabled = busy;
+  toggle.textContent = "切换";
+  toggle.title = toggle.ariaLabel = stagehand ? "切换到普通模式" : "切换到受控模式";
 }
 
 function renderActivity(snapshotMessages = []) {
@@ -191,7 +189,6 @@ function onEvent(event) {
       state.planEntries = event.data.planEntries ?? [];
       renderActivity();
       renderCommands();
-      $("#workspace-path").textContent = event.data.workspace;
       state.workspace = event.data.workspace;
       state.usage = event.data.lastUsage;
       renderBrowserBridge(event.data.browser);
@@ -358,15 +355,19 @@ $("#trace-toggle").addEventListener("click", () => {
   if (!panel.hidden) resourceBrowser.open();
 });
 $("#clear-events").addEventListener("click", () => trace.replaceChildren());
-$("#browser-bridge-button").addEventListener("click", () => openBrowserPairing().catch((error) => toast(error.message)));
-$("#browser-modal-close").addEventListener("click", () => { $("#browser-modal").hidden = true; });
-$("#browser-rotate-token").addEventListener("click", async () => {
+async function switchBrowserMode(provider) {
+  if (switchingBrowser || state.browser.switching) return;
+  switchingBrowser = true;
+  renderBrowserBridge();
   try {
-    const pairing = await api("/api/browser/rotate-token", {});
-    renderBrowserBridge(pairing.status);
-    toast("已更新配对令牌，扩展将自动重新连接");
-  } catch (error) { toast(error.message); }
-});
+    renderBrowserBridge(await api("/api/browser/provider", { provider, transferPage: true }));
+    setTimeout(() => closeTransferredPage(events), 0);
+  } catch (error) {
+    toast(error.message);
+    try { renderBrowserBridge(await api("/api/browser/status")); } catch { /* 保留现有模式状态 */ }
+  } finally { switchingBrowser = false; renderBrowserBridge(); }
+}
+$("#browser-mode-toggle").addEventListener("click", () => switchBrowserMode(state.browser.provider === "stagehand" ? "normal" : "stagehand"));
 list.addEventListener("scroll", updateScrollButton);
 $("#scroll-bottom").addEventListener("click", () => list.scrollTo({ top: list.scrollHeight, behavior: "smooth" }));
 $("#error-close").addEventListener("click", () => { $("#error-banner").hidden = true; });
@@ -454,6 +455,7 @@ events.onmessage = (message) => { try { onEvent(JSON.parse(message.data)); } cat
 events.onopen = () => {
   api("/api/status").then(async (status) => {
     onEvent({ type: "status", at: new Date().toISOString(), data: status });
+    await acknowledgeBrowserHandoff(api);
     await bootstrapSession();
   }).catch((error) => toast(error.message));
 };

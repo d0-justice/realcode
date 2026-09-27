@@ -11,60 +11,45 @@ const secret = requiredEnvironment("REALCODE_BROWSER_SECRET");
 
 type Tool = { name: string; description: string; inputSchema: Record<string, unknown> };
 
-const frame = { type: "string", minLength: 1, description: "最近一次 snapshot 返回的 CDP frameId；iframe 导航后编号会变化，应重新 snapshot；顶层页面可省略" };
-const selector = { type: "string", minLength: 1, description: "snapshot 返回的 CSS selector" };
+const frame = { type: "string", minLength: 1, description: "页面特征观察返回的 frameId；顶层控制面可省略" };
 const tools: Tool[] = [
   {
-    name: "browser_snapshot",
-    description: "读取浏览器控制目标。RealCode 页面存在‘展开预览’悬浮窗口时，只返回该窗口中的 iframe，并标记 controlMode=floating-preview；没有悬浮窗口时返回 controlMode=new-tab-fallback 和 fallbackUrl，此时才可调用 browser_open_tab。一次失败不能据此判断 iframe 被阻止。frameId 仅对当前文档有效。",
-    inputSchema: { type: "object", properties: { frameId: frame, maxElements: { type: "integer", minimum: 1, maximum: 500 }, maxTextLength: { type: "integer", minimum: 0, maximum: 50000 } }, additionalProperties: false },
+    name: "browser_observe",
+    description: "一次读取当前控制面的页面特征、可见文本和动态操作空间，不截屏。优先观察展开预览 iframe；未展开或站点拒绝嵌入时返回新标签页回退地址。返回的 fingerprint 与 actionId 必须一起交给 browser_act。",
+    inputSchema: { type: "object", properties: { frameId: frame, maxActions: { type: "integer", minimum: 1, maximum: 500 }, maxTextLength: { type: "integer", minimum: 0, maximum: 50000 } }, additionalProperties: false },
   },
   {
-    name: "browser_click",
-    description: "点击 snapshot 返回的页面或 iframe 元素。",
-    inputSchema: { type: "object", properties: { selector, frameId: frame }, required: ["selector"], additionalProperties: false },
-  },
-  {
-    name: "browser_fill",
-    description: "填写 snapshot 返回的 input 或 textarea。不会读取密码框内容。",
-    inputSchema: { type: "object", properties: { selector, value: { type: "string" }, frameId: frame }, required: ["selector", "value"], additionalProperties: false },
-  },
-  {
-    name: "browser_select",
-    description: "按 option value 选择 snapshot 返回的下拉框。",
-    inputSchema: { type: "object", properties: { selector, value: { type: "string" }, frameId: frame }, required: ["selector", "value"], additionalProperties: false },
-  },
-  {
-    name: "browser_scroll",
-    description: "滚动所选标签页或指定 iframe。",
-    inputSchema: { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, frameId: frame }, additionalProperties: false },
+    name: "browser_act",
+    description: "使用当前浏览器引擎执行 browser_observe 返回的一项操作。传入该次观察的 fingerprint、actionId 和 frameId。执行前检查目标身份和遮挡；executed 仅表示输入已发送，须检查返回内容确认业务结果。点击链接会返回 needsObservation=true，必须再次观察导航后的页面。若用户要求在会话中可见地浏览网页，不能用 webfetch 代替浏览器操作；浏览器失败时应如实报告。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        actionId: { type: "string", pattern: "^e[1-9][0-9]*$", description: "browser_observe 返回的操作 ID" },
+        fingerprint: { type: "string", minLength: 1, description: "与 actionId 同次返回的页面指纹" },
+        frameId: frame,
+        text: { type: "string", description: "fill 操作要填写的文本；其他操作省略" },
+      },
+      required: ["actionId", "fingerprint"],
+      additionalProperties: false,
+    },
   },
   {
     name: "browser_screenshot",
-    description: "截取所选标签页当前可见区域。",
+    description: "仅在用户明确需要视觉诊断时截取当前可见区域。常规状态识别必须使用 browser_observe。",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "browser_open_tab",
-    description: "仅当 browser_snapshot 返回 controlMode=new-tab-fallback 时，使用同一次快照返回的 fallbackUrl 打开新标签页。存在展开预览悬浮窗口时禁止调用。",
+    description: "仅当 browser_observe 返回 controlMode=new-tab-fallback 时，使用该次观察返回的 fallbackUrl 在受控 Chrome 的顶层标签页打开。站点拒绝 iframe 嵌入时也可使用。",
     inputSchema: { type: "object", properties: { url: { type: "string", format: "uri" } }, required: ["url"], additionalProperties: false },
-  },
-  {
-    name: "browser_wait",
-    description: "等待页面异步更新，最长 30 秒。",
-    inputSchema: { type: "object", properties: { milliseconds: { type: "integer", minimum: 0, maximum: 30000 } }, required: ["milliseconds"], additionalProperties: false },
   },
 ];
 
 const methodByTool: Record<string, string> = {
-  browser_snapshot: "browser.snapshot",
-  browser_click: "browser.click",
-  browser_fill: "browser.fill",
-  browser_select: "browser.select",
-  browser_scroll: "browser.scroll",
+  browser_observe: "browser.observe",
+  browser_act: "browser.act",
   browser_screenshot: "browser.screenshot",
   browser_open_tab: "browser.openTab",
-  browser_wait: "browser.wait",
 };
 
 function write(message: unknown): void {
@@ -78,7 +63,7 @@ async function callBrowser(name: string, args: unknown): Promise<unknown> {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
     body: JSON.stringify({ method, args: args && typeof args === "object" ? args : {} }),
-    signal: AbortSignal.timeout(125_000),
+    signal: AbortSignal.timeout(20_000),
   });
   const payload = await response.json() as { result?: unknown; error?: string };
   if (!response.ok) throw new Error(payload.error || `RealCode browser bridge returned HTTP ${response.status}`);
@@ -95,7 +80,7 @@ async function handle(request: Record<string, unknown>): Promise<void> {
       result = {
         protocolVersion: params?.protocolVersion ?? "2025-06-18",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "realcode-browser", version: "0.3.0" },
+        serverInfo: { name: "realcode-browser", version: "0.4.0" },
       };
     } else if (request.method === "ping") {
       result = {};
