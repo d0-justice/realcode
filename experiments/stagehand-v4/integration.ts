@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { StagehandBrowser } from '@browserbasehq/stagehand';
-import { BrowserBridge, isBrowserMethod } from '../../src/browser-automation/bridge';
-import { BrowserAutomationService } from '../../src/browser-automation/service';
+import { BrowserBridge, isBrowserMethod } from '../../modules/agent-platform/src/browser-automation/bridge';
+import { BrowserAutomationService } from '../../modules/agent-platform/src/browser-automation/service';
 
 // 用真实跨域 iframe 验证驱动协议、遮挡保护、节点替换与导航，不调用模型。
 const bridge = new BrowserBridge();
@@ -16,8 +16,8 @@ const server = Bun.serve({ hostname: '0.0.0.0', port: 0, async fetch(request) {
   if (url.pathname === '/ready') {
     return Response.json({ ok: automation.handoff.acknowledge(url.searchParams.get('token')) });
   }
-  if (url.pathname === '/ui') return new Response(Bun.file(resolve(import.meta.dirname, '../../public/index.html')), { headers: { 'content-type': 'text/html; charset=utf-8' } });
-  if (['/styles.css', '/extras.css', '/fenix-theme.css'].includes(url.pathname)) return new Response(Bun.file(resolve(import.meta.dirname, `../../public${url.pathname}`)), { headers: { 'content-type': 'text/css; charset=utf-8' } });
+  if (url.pathname === '/ui') return new Response(Bun.file(resolve(import.meta.dirname, '../../modules/agent-platform/public/index.html')), { headers: { 'content-type': 'text/html; charset=utf-8' } });
+  if (['/styles.css', '/extras.css', '/fenix-theme.css'].includes(url.pathname)) return new Response(Bun.file(resolve(import.meta.dirname, `../../modules/agent-platform/public${url.pathname}`)), { headers: { 'content-type': 'text/css; charset=utf-8' } });
   if (url.pathname === '/app.js') return new Response('', { headers: { 'content-type': 'application/javascript' } });
   if (url.pathname === '/command') {
     if (request.headers.get('authorization') !== `Bearer ${bridge.internalSecret}`) return Response.json({ error: 'unauthorized' }, { status: 401 });
@@ -61,7 +61,7 @@ automation = new BrowserAutomationService(bridge, `http://127.0.0.1:${server.por
   const response = await fetch(`http://127.0.0.1:${server.port}/ready?token=${token}`);
   assert.equal((await response.json()).ok, true);
 });
-const child = spawn(process.execPath, [resolve(import.meta.dirname, '../../src/browser-automation/mcp-server.ts')], {
+const child = spawn(process.execPath, [resolve(import.meta.dirname, '../../modules/agent-platform/src/browser-automation/mcp-server.ts')], {
   env: { ...process.env, REALCODE_BROWSER_API: `http://127.0.0.1:${server.port}/command`, REALCODE_BROWSER_SECRET: bridge.internalSecret },
   stdio: ['pipe', 'pipe', 'inherit'], windowsHide: true,
 });

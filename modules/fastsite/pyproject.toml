@@ -20,7 +20,5 @@ dependencies = [
 fastsite-cli = "fastsite.cli:main"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+packages = ["fastsite", "fastsite.connectors"]
+package-dir = {"fastsite" = "src"}

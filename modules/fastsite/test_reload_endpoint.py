@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 
-MODULE = runpy.run_path(str(Path(__file__).parent / "src" / "fastsite" / "reload_endpoint.py"))
+MODULE = runpy.run_path(str(Path(__file__).parent / "src" / "reload_endpoint.py"))
 ReloadEndpointConfig = MODULE["ReloadEndpointConfig"]
 authorized = MODULE["authorized"]
 reload_command = MODULE["reload_command"]

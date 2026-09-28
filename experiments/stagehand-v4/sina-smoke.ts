@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { StagehandDriver } from '../../src/browser-automation/stagehand-driver';
+import { StagehandDriver } from '../../modules/agent-platform/src/browser-automation/stagehand-driver';
 
 const article = 'https://news.sina.com.cn/c/2026-09-12/doc-inirputk6718450.shtml';
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: () => new Response(`<!doctype html><meta charset="utf-8"><div id="iframe-modal"><iframe id="iframe-expanded" src="${article}" style="width:1100px;height:750px"></iframe></div>`, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }) });

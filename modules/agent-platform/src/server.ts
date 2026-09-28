@@ -7,7 +7,7 @@ import { BrowserAutomationService } from "./browser-automation/service";
 import { createResource, deleteResource, listResources, renameResource, resourceDownloadName, resourceFile, uploadResource, writeResource } from "./workspace-resources";
 
 const port = Number(process.env.MYOPENCODE_PORT ?? 4173);
-const workspace = process.env.MYOPENCODE_WORKSPACE ?? resolve(import.meta.dir, "../workspace");
+const workspace = process.env.MYOPENCODE_WORKSPACE ?? resolve(import.meta.dir, "../../../workspace");
 const browserBridge = new BrowserBridge();
 const browserAutomation = new BrowserAutomationService(browserBridge, `http://127.0.0.1:${port}`, workspace);
 const lab = new AcpSessionLab(workspace, {

@@ -1,5 +1,15 @@
 # RealCode
 
+## 模块结构
+
+| 模块 | 语言 | 职责 |
+| --- | --- | --- |
+| `modules/agent-platform/` | JavaScript / Bun | 会话、工作区文件、Skill、MCP、权限交互及会话页面 |
+| `modules/rag/` | Python / FastAPI | 按租户隔离的文档索引与检索 API |
+| `modules/fastsite/` | Python / FastAPI | 动态建站与可热加载的 Web 插件 |
+
+三个模块独立管理依赖。Agent 平台继续使用仓库根目录的 `workspace/`，已有会话、文件与 Python 工具环境无需迁移。RAG 当前提供关键词检索基线，尚未接入 Agent 平台的会话流程；接入时由平台先校验用户权限，再调用带内部令牌的 RAG API。Fastsite 保留原有插件契约。模块边界与启动方式见 [modules/README.md](modules/README.md)。
+
 一个独立的 OpenCode ACP 会话实验台。
 
 ## 启动
@@ -9,16 +19,16 @@
 ```bash
 cd realcode
 bun install
-bun run start
+bun modules/agent-platform/src/server.ts
 ```
 
 打开 `http://127.0.0.1:4173`。页面会自动连接 OpenCode，并载入最近会话；没有历史会话时自动新建。左侧可切换、重命名和删除会话，底部可发送消息、切换模型、模式与当前模型支持的推理强度，并附加文件或图片。回复支持 Markdown、思考折叠、工具详情和安全 iframe 预览；`workspace/user/` 下的 HTML 可通过 `<iframe src="user/文件名.html"></iframe>` 预览。顶部“资源与事件”可展开右侧面板：文件管理可浏览 `workspace/` 文件树、预览、上传、新建、重命名、删除、下载或引用文件到聊天；面板还展示会话上下文和原始 ACP 事件。服务端只监听本机回环地址。选择 Big Pickle 时图片按钮会禁用，因为该模型不接受图片输入。
 
 ### Chrome 浏览器控制
 
-RealCode 内置 Browser MCP Server，并通过 `realcode-browser-extension/` 中的 Chrome 扩展控制用户明确选择的标签页及其中可访问的 iframe。无需安装本地助手程序。
+RealCode 内置 Browser MCP Server，并通过 `modules/agent-platform/browser-extension/` 中的 Chrome 扩展控制用户明确选择的标签页及其中可访问的 iframe。无需安装本地助手程序。
 
-1. 在 `chrome://extensions` 开启开发者模式，加载 `realcode/realcode-browser-extension/`。
+1. 在 `chrome://extensions` 开启开发者模式，加载 `realcode/modules/agent-platform/browser-extension/`。
 2. 安装时接受 Chrome 显示的网页访问权限；安装完成后无需再次授权。
 3. 扩展会自动识别当前 RealCode 标签页，并从同源接口取得配对令牌。
 4. 新建或重新载入会话后，OpenCode 可以调用页面读取、点击、填写、选择、滚动、截图、导航以及自动打开或切换标签页等 Browser MCP 工具。

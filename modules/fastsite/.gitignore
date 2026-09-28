@@ -1,0 +1,16 @@
+/build/
+/dist/
+/*.egg-info/
+/config/databases.toml
+/build-config.yml
+/src/_compiled_config.pyx
+/src/_compiled_config*.c
+/src/_compiled_config*.so
+/src/_compiled_config*.pyd
+/src/*.so
+/src/*.pyd
+/src/*.c
+/src/connectors/*.so
+/src/connectors/*.pyd
+/src/connectors/*.c
+/dist-secure/

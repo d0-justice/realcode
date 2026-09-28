@@ -39,9 +39,9 @@ interface BrowserMcpConfig {
 function executablePath(): string {
   const configured = process.env.OPENCODE_BIN;
   if (configured) return configured;
-  const packageBinary = resolve(import.meta.dir, "../node_modules/opencode-ai/bin", process.platform === "win32" ? "opencode.exe" : "opencode");
+  const packageBinary = resolve(import.meta.dir, "../../../node_modules/opencode-ai/bin", process.platform === "win32" ? "opencode.exe" : "opencode");
   if (existsSync(packageBinary)) return packageBinary;
-  const local = resolve(import.meta.dir, "../node_modules/.bin", process.platform === "win32" ? "opencode.cmd" : "opencode");
+  const local = resolve(import.meta.dir, "../../../node_modules/.bin", process.platform === "win32" ? "opencode.cmd" : "opencode");
   return existsSync(local) ? local : "opencode";
 }
 

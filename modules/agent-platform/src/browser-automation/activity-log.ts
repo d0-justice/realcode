@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
-const logDirectory = resolve(import.meta.dir, "../../workspace/.realcode/logs");
+const logDirectory = resolve(import.meta.dir, "../../../../workspace/.realcode/logs");
 mkdirSync(logDirectory, { recursive: true });
 
 /** Records timestamped operational metadata without command inputs or page content. */

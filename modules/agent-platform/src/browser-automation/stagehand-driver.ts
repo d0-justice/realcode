@@ -50,8 +50,8 @@ export class StagehandDriver {
     try {
       this.runtime = await Stagehand.create({ browser: this.browser });
       const guards = await readFile(resolve(import.meta.dir, 'stagehand-page-runtime.js'), 'utf8');
-      const navigation = await readFile(resolve(import.meta.dir, '../../realcode-browser-extension/src/browser-automation/floating-preview-navigation.js'), 'utf8');
-      const videoPause = await readFile(resolve(import.meta.dir, '../../realcode-browser-extension/src/browser-automation/embedded-video-pause.js'), 'utf8');
+      const navigation = await readFile(resolve(import.meta.dir, '../../browser-extension/src/browser-automation/floating-preview-navigation.js'), 'utf8');
+      const videoPause = await readFile(resolve(import.meta.dir, '../../browser-extension/src/browser-automation/embedded-video-pause.js'), 'utf8');
       await this.browser.context.addInitScript(`${guards}\ninstallStagehandGuards(${JSON.stringify(this.nonce)});\n${navigation}\n${videoPause}`);
       const pages = await this.browser.context.pages();
       let blankPage: Page | undefined;

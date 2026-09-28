@@ -23,7 +23,7 @@
 1. 打开 `chrome://extensions`。
 2. 开启右上角“开发者模式”。
 3. 点击“加载已解压的扩展程序”。
-4. 选择本目录 `realcode-browser-extension`。
+4. 选择本目录 `modules/agent-platform/browser-extension`。
 5. 打开需要控制的页面，点击扩展图标。
 6. 接受安装权限后，扩展会自动识别 RealCode 标签页并完成配对。
 
@@ -95,7 +95,7 @@
 ## 目录
 
 ```text
-realcode-browser-extension/
+modules/agent-platform/browser-extension/
 ├── manifest.json
 ├── README.md
 └── src/

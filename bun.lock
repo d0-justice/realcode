@@ -4,6 +4,14 @@
   "workspaces": {
     "": {
       "name": "realcode",
+      "devDependencies": {
+        "@types/bun": "^1.3.14",
+        "typescript": "^5.9.3",
+      },
+    },
+    "modules/agent-platform": {
+      "name": "@realcode/agent-platform",
+      "version": "0.1.0",
       "dependencies": {
         "@agentclientprotocol/sdk": "1.2.0",
         "@browserbasehq/stagehand": "4.1.0",
@@ -12,10 +20,6 @@
         "marked": "^18.0.13",
         "opencode-ai": "1.18.31",
         "zod": "4.4.3",
-      },
-      "devDependencies": {
-        "@types/bun": "^1.3.14",
-        "typescript": "^5.9.3",
       },
     },
   },
@@ -31,6 +35,8 @@
     "@opentelemetry/core": ["@opentelemetry/core@2.9.0", "", { "dependencies": { "@opentelemetry/semantic-conventions": "^1.29.0" }, "peerDependencies": { "@opentelemetry/api": ">=1.0.0 <1.10.0" } }, "sha512-m2nckMT80NnmjTYSPjJQObBJ+8dgkoajEOUbznL8AHZ3T3yHRk2P7gI1PhEBc1+lOnrYE9UWrWHqJDsmqjmNbw=="],
 
     "@opentelemetry/semantic-conventions": ["@opentelemetry/semantic-conventions@1.43.0", "", {}, "sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg=="],
+
+    "@realcode/agent-platform": ["@realcode/agent-platform@workspace:modules/agent-platform"],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 

@@ -45,7 +45,7 @@ export async function prepareDefaultModelConfig(workspace: string): Promise<bool
 
 /** Convert the platform-style launch fields from FenixAgent into an OpenCode workspace config. */
 export async function prepareLaunchConfig(workspace: string): Promise<boolean> {
-  const path = resolve(process.env.MYOPENCODE_LAUNCH_CONFIG ?? resolve(import.meta.dir, "../launch.json"));
+  const path = resolve(process.env.MYOPENCODE_LAUNCH_CONFIG ?? resolve(import.meta.dir, "../../../launch.json"));
   let source: string;
   try { source = await readFile(path, "utf8"); }
   catch (error) {

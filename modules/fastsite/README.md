@@ -1,11 +1,11 @@
 # Fastsite
 
-`fastsite` is the stable webservice host. Its Python package is `fastsite`. It exposes `/healthz`, applies basic request protections, loads trusted extensions from `FASTSITE_EXTENSIONS_DIR` whenever a Gunicorn Worker starts, and provides shared MySQL-protocol connection pools through PyMySQL.
+`fastsite` is the stable webservice host. Its Python sources are in `src/`, mapped to the importable package `fastsite` during installation. It exposes `/healthz`, applies basic request protections, loads trusted extensions from `FASTSITE_EXTENSIONS_DIR` whenever a Gunicorn Worker starts, and provides shared MySQL-protocol connection pools through PyMySQL.
 
 ## Build
 
 ```bash
-python -m pip wheel --no-build-isolation --no-deps --wheel-dir dist ./fastsite
+python -m pip wheel --no-build-isolation --no-deps --wheel-dir dist .
 ```
 
 For the production secure wheel, create a private `build-config.yml` from

@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG = ROOT / "build-config.yml"
-TARGET = ROOT / "src" / "fastsite" / "_compiled_config.pyx"
+TARGET = ROOT / "src" / "_compiled_config.pyx"
 KEY_BYTES = 32
 NONCE_BYTES = 12
 

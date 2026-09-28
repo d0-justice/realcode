@@ -11,8 +11,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-SRC = ROOT / "src"
-PACKAGE = SRC / "fastsite"
+SRC = ROOT
+PACKAGE = SRC / "src"
 DIST = ROOT / "dist-secure"
 KEEP_PY = {"__init__.py", "cli.py", "connectors/__init__.py"}
 
@@ -29,8 +29,8 @@ def _sources() -> list[Path]:
 
 def _write_compile_setup(target: Path) -> None:
     sources = [str(path.relative_to(SRC)).replace("\\", "/") for path in _sources()]
-    sources.append("fastsite/_compiled_config.pyx")
-    modules = [source.rsplit(".", 1)[0].replace("/", ".") for source in sources]
+    sources.append("src/_compiled_config.pyx")
+    modules = ["fastsite." + source.removeprefix("src/").rsplit(".", 1)[0].replace("/", ".") for source in sources]
     lines = [
         "from setuptools import Extension, setup",
         "from Cython.Build import cythonize",
@@ -41,6 +41,8 @@ def _write_compile_setup(target: Path) -> None:
     lines.extend([
         "]",
         "setup(",
+        "    package_dir={'fastsite': 'src'},",
+        "    packages=['fastsite', 'fastsite.connectors'],",
         "    ext_modules=cythonize(extensions, compiler_directives={'language_level': '3'}, force=True),",
         "    script_args=['build_ext', '--inplace', '--force'],",
         ")",
