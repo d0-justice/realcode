@@ -25,6 +25,7 @@ describe("browser MCP server", () => {
       "browser_act",
       "browser_screenshot",
       "browser_open_tab",
+      "browser_site",
     ]);
   });
 });

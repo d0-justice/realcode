@@ -42,6 +42,7 @@ describe("BrowserBridge", () => {
       "browser.act",
       "browser.screenshot",
       "browser.openTab",
+      "browser.site",
     ]);
   });
 

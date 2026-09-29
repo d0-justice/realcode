@@ -50,9 +50,10 @@ export class StagehandDriver {
     try {
       this.runtime = await Stagehand.create({ browser: this.browser });
       const guards = await readFile(resolve(import.meta.dir, 'stagehand-page-runtime.js'), 'utf8');
+      const bilibili = await readFile(resolve(import.meta.dir, 'bilibili-site-hook.js'), 'utf8');
       const navigation = await readFile(resolve(import.meta.dir, '../../browser-extension/src/browser-automation/floating-preview-navigation.js'), 'utf8');
       const videoPause = await readFile(resolve(import.meta.dir, '../../browser-extension/src/browser-automation/embedded-video-pause.js'), 'utf8');
-      await this.browser.context.addInitScript(`${guards}\ninstallStagehandGuards(${JSON.stringify(this.nonce)});\n${navigation}\n${videoPause}`);
+      await this.browser.context.addInitScript(`${guards}\ninstallStagehandGuards(${JSON.stringify(this.nonce)});\n${bilibili}\ninstallBilibiliSiteHook(${JSON.stringify(this.nonce)});\n${navigation}\n${videoPause}`);
       const pages = await this.browser.context.pages();
       let blankPage: Page | undefined;
       for (const page of pages) {
@@ -108,6 +109,7 @@ export class StagehandDriver {
       const bytes = await surface.page.screenshot();
       return { provider: 'stagehand', dataUrl: `data:image/png;base64,${Buffer.from(bytes).toString('base64')}` };
     }
+    if (method === 'browser.site') return this.site(surface, args);
     if (method === 'browser.observe') return this.observe(surface, args);
     return this.act(surface, args);
   }
@@ -158,6 +160,31 @@ export class StagehandDriver {
     return value as T;
   }
 
+  private async site(surface: Surface, args: Record<string, unknown>) {
+    if (surface.mode === 'new-tab-fallback') return { controlMode: surface.mode, fallbackUrl: surface.fallbackUrl, tools: [] };
+    const operation = args.operation;
+    if (operation !== 'tools' && operation !== 'call') throw new Error('operation 必须是 tools 或 call');
+    const result = await this.probe<{ site?: string; source?: string; state?: string; tools?: unknown[]; navigationUrl?: string; error?: string }>(
+      surface, operation === 'tools' ? 'site.tools' : 'site.call',
+      operation === 'tools' ? {} : { name: args.name, args: args.args ?? {} },
+    );
+    if (result.error) throw new Error(result.error);
+    if (!result.navigationUrl) return { provider: 'realcode-site-adapter', ...result };
+    const target = new URL(result.navigationUrl);
+    if (target.protocol !== 'https:' || !/(^|\.)bilibili\.com$/i.test(target.hostname)) throw new Error('站点适配器返回了无效导航地址');
+    this.observation = null;
+    if (surface.framePath) {
+      await surface.page.evaluate(url => {
+        const frame = document.querySelector<HTMLIFrameElement>('#iframe-expanded');
+        if (!frame) throw new Error('浮窗已关闭');
+        frame.src = url;
+      }, target.href);
+    } else {
+      await surface.page.goto(target.href);
+    }
+    return { provider: 'realcode-site-adapter', site: 'bilibili.com', navigationUrl: target.href, navigationExpected: true, needsObservation: true };
+  }
+
   private async observe(surface: Surface, args: Record<string, unknown>) {
     if (surface.mode === 'new-tab-fallback') { this.observation = null; return { provider: 'stagehand', controlMode: surface.mode, fallbackUrl: surface.fallbackUrl, frames: [], hint: '请在受控模式的专用 Chrome 中展开 RealCode 网页预览；否则可打开 fallbackUrl。' }; }
     try { return await this.observeReady(surface, args); }
@@ -184,15 +211,17 @@ export class StagehandDriver {
     }
     const frameId = `${surface.page.pageId}:${observed.documentId}`;
     this.observation = { fingerprint, frameId, pageId: surface.page.pageId, mode: surface.mode, actions: observed.actions };
-    let structure = '';
-    try {
-      const snapshot = await surface.page.snapshot({ includeIframes: true });
-      structure = previewTree(snapshot.formattedTree, snapshot.xpathMap, surface.framePath).slice(0, maxText);
-    } catch (error) {
-      activityLog('stagehand', 'snapshot.unavailable', { reason: error instanceof Error ? error.name : 'Error' });
+    let structure: string | undefined;
+    if (args.includeStructure === true) {
+      try {
+        const snapshot = await surface.page.snapshot({ includeIframes: true });
+        structure = previewTree(snapshot.formattedTree, snapshot.xpathMap, surface.framePath).slice(0, maxText);
+      } catch (error) {
+        activityLog('stagehand', 'snapshot.unavailable', { reason: error instanceof Error ? error.name : 'Error' });
+      }
     }
     return { provider: 'stagehand', controlMode: surface.mode, fallbackUrl: null, frames: [{ frameId, state: {
-      url: observed.url, fingerprint, text: observed.text, structure, actions: observed.actions,
+      url: observed.url, fingerprint, text: observed.text, ...(structure !== undefined ? { structure } : {}), actions: observed.actions,
     } }], limitations: '仅支持当前文档/单层浮窗的填写和点击；操作后需检查返回内容确认业务结果。' };
   }
 

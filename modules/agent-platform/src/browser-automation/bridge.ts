@@ -8,6 +8,7 @@ export const BROWSER_METHODS = [
   "browser.act",
   "browser.screenshot",
   "browser.openTab",
+  "browser.site",
 ] as const;
 
 export type BrowserMethod = (typeof BROWSER_METHODS)[number];

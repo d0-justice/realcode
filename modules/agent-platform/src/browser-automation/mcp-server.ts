@@ -16,7 +16,7 @@ const tools: Tool[] = [
   {
     name: "browser_observe",
     description: "一次读取当前控制面的页面特征、可见文本和动态操作空间，不截屏。优先观察展开预览 iframe；未展开或站点拒绝嵌入时返回新标签页回退地址。返回的 fingerprint 与 actionId 必须一起交给 browser_act。",
-    inputSchema: { type: "object", properties: { frameId: frame, maxActions: { type: "integer", minimum: 1, maximum: 500 }, maxTextLength: { type: "integer", minimum: 0, maximum: 50000 } }, additionalProperties: false },
+    inputSchema: { type: "object", properties: { frameId: frame, maxActions: { type: "integer", minimum: 1, maximum: 500 }, maxTextLength: { type: "integer", minimum: 0, maximum: 50000 }, includeStructure: { type: "boolean", description: "需要查看 accessibility 树时设为 true；默认不生成快照" } }, additionalProperties: false },
   },
   {
     name: "browser_act",
@@ -43,6 +43,15 @@ const tools: Tool[] = [
     description: "仅当 browser_observe 返回 controlMode=new-tab-fallback 时，使用该次观察返回的 fallbackUrl 在受控 Chrome 的顶层标签页打开。站点拒绝 iframe 嵌入时也可使用。",
     inputSchema: { type: "object", properties: { url: { type: "string", format: "uri" } }, required: ["url"], additionalProperties: false },
   },
+  {
+    name: "browser_site",
+    description: "获取当前嵌入页的 RealCode 站点适配工具，或调用已发现的工具。先用 operation=tools；Bilibili 支持搜索视频、列出结果和打开结果。验证码需要人工完成。",
+    inputSchema: { type: "object", properties: {
+      operation: { type: "string", enum: ["tools", "call"] },
+      name: { type: "string" },
+      args: { type: "object" },
+    }, required: ["operation"], additionalProperties: false },
+  },
 ];
 
 const methodByTool: Record<string, string> = {
@@ -50,6 +59,7 @@ const methodByTool: Record<string, string> = {
   browser_act: "browser.act",
   browser_screenshot: "browser.screenshot",
   browser_open_tab: "browser.openTab",
+  browser_site: "browser.site",
 };
 
 function write(message: unknown): void {
