@@ -4,7 +4,7 @@
 
 | 模块 | 语言 | 职责 |
 | --- | --- | --- |
-| `modules/agent-platform/` | JavaScript / Bun | 会话、工作区文件、Skill、MCP、权限交互及会话页面 |
+| `modules/app/` | JavaScript / Bun | 会话、工作区文件、Skill、MCP、权限交互及会话页面 |
 | `modules/rag/` | Python / FastAPI | 按租户隔离的文档索引与检索 API |
 | `modules/fastsite/` | Python / FastAPI | 动态建站与可热加载的 Web 插件 |
 
@@ -19,21 +19,17 @@
 ```bash
 cd realcode
 bun install
-bun modules/agent-platform/src/server.ts
+bun modules/app/server/server.ts
 ```
 
 打开 `http://127.0.0.1:4173`。页面会自动连接 OpenCode，并载入最近会话；没有历史会话时自动新建。左侧可切换、重命名和删除会话，底部可发送消息、切换模型、模式与当前模型支持的推理强度，并附加文件或图片。回复支持 Markdown、思考折叠、工具详情和安全 iframe 预览；`workspace/user/` 下的 HTML 可通过 `<iframe src="user/文件名.html"></iframe>` 预览。顶部“资源与事件”可展开右侧面板：文件管理可浏览 `workspace/` 文件树、预览、上传、新建、重命名、删除、下载或引用文件到聊天；面板还展示会话上下文和原始 ACP 事件。服务端只监听本机回环地址。选择 Big Pickle 时图片按钮会禁用，因为该模型不接受图片输入。
 
 ### Chrome 浏览器控制
 
-RealCode 内置 Browser MCP Server，并通过 `modules/agent-platform/browser-extension/` 中的 Chrome 扩展控制用户明确选择的标签页及其中可访问的 iframe。无需安装本地助手程序。
+RealCode 内置 Browser MCP Server。点击页面顶部的“切换”进入受控模式后，服务会启动独立的 Chrome，并通过本机 CDP 连接控制会话中的展开预览 iframe。受控模式无需安装 Chrome 扩展、Stagehand 或 Playwright。切回普通模式时会关闭受控 Chrome，并在普通 Chrome 中打开会话页。
 
-1. 在 `chrome://extensions` 开启开发者模式，加载 `realcode/modules/agent-platform/browser-extension/`。
-2. 安装时接受 Chrome 显示的网页访问权限；安装完成后无需再次授权。
-3. 扩展会自动识别当前 RealCode 标签页，并从同源接口取得配对令牌。
-4. 新建或重新载入会话后，OpenCode 可以调用页面读取、点击、填写、选择、滚动、截图、导航以及自动打开或切换标签页等 Browser MCP 工具。
+Agent 优先发现页面自身注册的 WebMCP 工具；对于已适配的站点，也可以调用 RealCode 注入的第三方站点工具。目前内置 Bilibili 适配器。其他页面可通过 `browser_observe` 获取简短的可见文本和操作列表，再用 `browser_act` 点击或填写。受站点嵌入策略限制的页面会返回新标签页回退地址。详情见 [CDP.md](modules/app/server/browser-automation/CDP.md)。
 
-配对令牌由扩展自动获取，只用于扩展 WebSocket；RealCode 为 MCP 子进程使用独立的进程内密钥。服务端命令只能操作扩展识别或用户明确选择的 RealCode 标签页，密码框内容不会进入页面快照。
 
 默认模型与本机 Codex 当前配置一致，为 `openai/gpt-5.6-sol`。首次启动会在 `workspace/.opencode/opencode.json` 写入该模型，不会覆盖已有工作区配置；可通过 `MYOPENCODE_DEFAULT_MODEL` 指定其他默认模型。OpenCode 必须单独登录 OpenAI：在本目录运行 `bunx opencode auth login -p openai -m "ChatGPT Pro/Plus (browser)"` 并完成浏览器授权，或使用 OpenCode 支持的 API Key 方式。Codex 的 `auth.json` 登录令牌不会被复制进本项目。
 

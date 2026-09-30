@@ -4,7 +4,7 @@
 浏览器 / Chrome 扩展
           │
           ▼
-modules/agent-platform  (Bun, 127.0.0.1:4173)
+modules/app  (Bun, 127.0.0.1:4173)
    ├─ OpenCode ACP：会话、模型、工具调用与权限交互
    ├─ workspace/：文件、技能安装及会话数据
    ├─ Browser MCP：受控网页操作
@@ -19,7 +19,7 @@ Agent 平台是唯一面向会话用户的服务。RAG 与 Fastsite 独立启动
 在仓库根目录：
 
 - `bun install` 安装 Agent 平台依赖。
-- `bun modules/agent-platform/src/server.ts` 启动 Agent 平台，默认端口 4173。
+- `bun modules/app/server/server.ts` 启动 Agent 平台，默认端口 4173。
 - `bun run typecheck` 与 `bun test` 验证 Agent 平台。
 - RAG：进入 `modules/rag`，按其 README 建立独立虚拟环境并运行 Uvicorn。
 - Fastsite：进入 `modules/fastsite`，按其 README 安装及部署。

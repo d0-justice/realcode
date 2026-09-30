@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["modules/agent-platform"],
+  "workspaces": ["modules/app"],
   "scripts": {
-    "dev": "bun --watch modules/agent-platform/src/server.ts",
-    "start": "bun modules/agent-platform/src/server.ts",
+    "dev": "bun --watch modules/app/server/server.ts",
+    "start": "bun modules/app/server/server.ts",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test": "bun test"
   },

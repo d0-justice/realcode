@@ -1,7 +1,0 @@
-{
-  "name": "realcode-stagehand-validation",
-  "private": true,
-  "type": "module",
-  "scripts": { "verify": "node verify.mjs" },
-  "dependencies": { "@browserbasehq/stagehand": "4.1.0", "zod": "~4.4.3" }
-}

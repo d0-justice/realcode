@@ -9,5 +9,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["modules/agent-platform/src/**/*.ts"]
+  "include": ["modules/app/server/**/*.ts"]
 }
