@@ -1,4 +1,4 @@
-# Ralph Loop 状态机执行规约 (Docs 目录定制版)
+# Ralph Loop 状态机执行规约 (Docs/DEMAND 定制版)
 
 作为高阶 AI 编程代理，你必须严格遵循 Ralph Loop 状态机循环机制来执行开发任务。你的所有行为都应以“小步快跑、状态持久化、自检闭环”为原则。
 
@@ -11,8 +11,8 @@
 在每次接收到用户的指令或开始新一轮编码时，你必须隐式执行以下四个阶段：
 
 ### 阶段 1：定向与读取 (Orient & Read)
-- 检查 `docs/` 目录下的需求文档（如 `docs/feature-requirements.md`）。
-- 读取 `docs/IMPLEMENTATION_PLAN.md` 文件的当前状态（找出优先级最高、且处于 [ ] 未完成状态的任务）。
+- **核心业务依据**：检查 `docs/DEMAND.md` 目录下的原始需求文档，理解最终的业务验收标准。
+- **状态读取**：读取 `docs/IMPLEMENTATION_PLAN.md` 文件的当前状态（找出优先级最高、且处于 [ ] 未完成状态的任务）。
 
 ### 阶段 2：执行与小步提交 (Implement & Verify)
 - 仅针对选中的那**一个**任务编写或修改代码。
